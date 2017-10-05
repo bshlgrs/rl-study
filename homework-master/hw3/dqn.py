@@ -215,7 +215,7 @@ def learn(env,
             action = env.action_space.sample()
         else:
             deterministic_action_results = session.run(deterministic_actions,
-                                                       feed_dict={obs_t_float:
+                                                       feed_dict={obs_t_ph:
                                                                       np.array([replay_buffer.encode_recent_observation()])})
             action = deterministic_action_results[0]
 
