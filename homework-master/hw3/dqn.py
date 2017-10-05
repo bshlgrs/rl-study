@@ -304,7 +304,8 @@ def learn(env,
                 obs_tp1_ph: obs_tp1_batch,
                 act_t_ph: act_batch,
                 rew_t_ph: rew_batch,
-                done_mask_ph: done_mask
+                done_mask_ph: done_mask,
+                learning_rate: optimizer_spec.lr_schedule.value(t)
             })
 
             # 3.d: periodically update the target network by calling
