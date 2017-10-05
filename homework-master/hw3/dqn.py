@@ -156,12 +156,16 @@ def learn(env,
 
     q_net_output = q_func(obs_t_float, num_actions, 'q_func_vars', False)
     q_func_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='q_func_vars')
-    target_q_net_output = q_func(obs_t_float, num_actions, 'target_q_func_vars', False)
+    target_q_net_output = q_func(obs_tp1_float, num_actions, 'target_q_func_vars', False)
     target_q_func_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='target_q_func_vars')
 
     expected_output = rew_t_ph + gamma * done_mask_ph * tf.reduce_max(target_q_net_output, axis=1)
 
-    total_error = tf.reduce_mean(expected_output - q_net_output)
+    predicted_values = tf.reduce_sum(tf.one_hot(act_t_ph, num_actions) * q_net_output, axis=1)
+    deterministic_actions = tf.argmax(q_net_output, axis=1)
+
+    print('predicted_values have shape', predicted_values.get_shape())
+    total_error = tf.reduce_mean(expected_output - predicted_values)
     ######
 
     # construct optimization op (with gradient clipping)
@@ -236,9 +240,10 @@ def learn(env,
         if random.random() < exploration.value(t) or not model_initialized:
             action = env.action_space.sample()
         else:
-            q_values = session.run(q_net_output, feed_dict={obs_t_float: np.array([replay_buffer.encode_recent_observation()])})
-            assert q_values.shape == (1, num_actions)
-            action = np.argmax(q_values[0])
+            deterministic_action_results = session.run(deterministic_actions,
+                                                       feed_dict={obs_t_float:
+                                                                      np.array([replay_buffer.encode_recent_observation()])})
+            action = deterministic_action_results[0]
 
         obs, reward, done, info = env.step(action)
 
