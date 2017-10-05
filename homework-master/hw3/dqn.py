@@ -126,38 +126,12 @@ def learn(env,
     # q_func_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='q_func')
     # Older versions of TensorFlow may require using "VARIABLES" instead of "GLOBAL_VARIABLES"
     ######
-    
-    # YOUR CODE HERE
-    # todo: something else if we're in the RAM case
-    print(input_shape)
-    # def make_q_network(input_ph, scope_name):
-    #     with tf.variable_scope(scope_name):
-    #         Wconv_1 = weight_variable([8, 8, frame_history_len * img_c, 16])
-    #         bconv_1 = bias_variable([16])
-    #         stride1 = 4
-    #         hconv_1 = tf.nn.relu(tf.nn.conv2d(input_ph, Wconv_1, [1, stride1, stride1, 1], padding='SAME', name='h1_conv') + bconv_1)
-    #
-    #         Wconv_2 = weight_variable([4, 4, frame_history_len * img_c, 32])
-    #         bconv_2 = bias_variable([32])
-    #         stride2 = 2
-    #
-    #         print(hconv_1.get_shape(), frame_history_len * img_c)
-    #         hconv_2 = tf.nn.relu(tf.nn.conv2d(hconv_1, Wconv_2, [1, stride2, stride2, 1], padding='SAME', name='h2_conv') + bconv_2)
-    #         new_shape_height = img_h * img_w * img_c * frame_history_len / stride1 / stride2
-    #         hconv_2_reshaped = hconv_2.reshape([-1, new_shape_height])
-    #
-    #         Wfc = weight_variable([new_shape_height, 256])
-    #         Bfc = bias_variable([256])
-    #         hfc = tf.nn.relu(tf.matmul(hconv_2_reshaped, Wfc) + Bfc)
-    #
-    #         Woutput = weight_variable([256, num_actions])
-    #         boutput = bias_variable([num_actions])
-    #         return tf.matmul(Woutput, hfc) + boutput
 
-    q_net_output = q_func(obs_t_float, num_actions, 'q_func_vars', False)
-    q_func_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='q_func_vars')
-    target_q_net_output = q_func(obs_tp1_float, num_actions, 'target_q_func_vars', False)
-    target_q_func_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='target_q_func_vars')
+    q_net_output = q_func(obs_t_float, num_actions, 'q_func', reuse=False)
+    q_func_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='q_func')
+
+    target_q_net_output = q_func(obs_tp1_float, num_actions, 'target_q_func', reuse=False)
+    target_q_func_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='target_q_func')
 
     expected_output = rew_t_ph + gamma * done_mask_ph * tf.reduce_max(target_q_net_output, axis=1)
 
@@ -319,9 +293,9 @@ def learn(env,
             # variable num_param_updates useful for this (it was initialized to 0)
             #####
             
-            if num_param_updates % target_update_freq == 0:
+            if t % target_update_freq == 0:
                 session.run(update_target_fn)
-            num_param_updates += 1
+                num_param_updates += 1
 
             #####
 
