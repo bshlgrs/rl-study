@@ -37,13 +37,13 @@ def duelling_atari_model(img_in, num_actions, scope, reuse=False):
 
         conv_flattened = layers.flatten(conv_layer_3)
 
-        with tf.variable_scope('advantage'):
-            advantage_fc1 = layers.fully_connected(conv_flattened, num_outputs=512, activation_fn=tf.nn.relu)
-            advantage_out = layers.fully_connected(advantage_fc1, num_outputs=num_actions, activation_fn=None)
-
         with tf.variable_scope('value'):
             value_fc1 = layers.fully_connected(conv_flattened, num_outputs=512, activation_fn=tf.nn.relu)
             value_out = tf.reduce_sum(layers.fully_connected(value_fc1, num_outputs=1, activation_fn=tf.nn.relu), axis=1)
+
+        with tf.variable_scope('advantage'):
+            advantage_fc1 = layers.fully_connected(conv_flattened, num_outputs=512, activation_fn=tf.nn.relu)
+            advantage_out = layers.fully_connected(advantage_fc1, num_outputs=num_actions, activation_fn=None)
 
         correction = tf.reduce_mean(advantage_out, axis=1)
 
