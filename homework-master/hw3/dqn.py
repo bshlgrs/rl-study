@@ -139,7 +139,7 @@ def learn(env,
     deterministic_actions = tf.argmax(q_net_output, axis=1)
 
     print('predicted_values have shape', predicted_values.get_shape())
-    total_error = tf.reduce_mean(expected_output - predicted_values)
+    total_error = tf.reduce_mean((expected_output - predicted_values)**2)
     ######
 
     # construct optimization op (with gradient clipping)
