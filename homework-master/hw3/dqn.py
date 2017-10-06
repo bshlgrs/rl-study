@@ -135,12 +135,25 @@ def learn(env,
     target_next_q_values = q_func(obs_tp1_float, num_actions, 'target_q_func', reuse=False)
     target_q_func_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='target_q_func')
 
-    y = rew_t_ph + gamma * (1 - done_mask_ph) * tf.reduce_max(target_next_q_values, axis=1)
+    double = True
+
+    if double:
+        all_values_of_next_states = q_func(obs_tp1_float, num_actions, 'q_func', reuse=True)
+        chosen_actions = tf.one_hot(tf.argmax(all_values_of_next_states, axis=1), num_actions)
+        value_of_next_states = tf.reduce_sum(chosen_actions * target_next_q_values, axis=1)
+    else:
+        value_of_next_states = tf.reduce_max(target_next_q_values, axis=1)
+
+    y = rew_t_ph + gamma * (1 - done_mask_ph) * value_of_next_states
+
     q_values_for_actions_taken = tf.reduce_sum(tf.one_hot(act_t_ph, num_actions) * q_values_all_actions, axis=1)
 
     deterministic_actions = tf.argmax(q_values_all_actions, axis=1)
 
     total_error = tf.reduce_mean((y - q_values_for_actions_taken)**2)
+
+
+
     ######
 
     # construct optimization op (with gradient clipping)
