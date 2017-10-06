@@ -136,7 +136,7 @@ def learn(env,
     target_q_func_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='target_q_func')
 
     # This is used in the double q network
-    q_double_values = q_func(obs_t_float, num_actions, 'target_q_func', reuse=True)
+    # q_double_values = q_func(obs_t_float, num_actions, 'target_q_func', reuse=True)
 
     deterministic_actions = tf.argmax(q_values, axis=1)
 
@@ -149,7 +149,7 @@ def learn(env,
 
     predicted_values = tf.reduce_sum(tf.one_hot(act_t_ph, num_actions) * target_q_values, axis=1)
 
-    total_error = tf.reduce_mean((target_next_q_values - predicted_values)**2)
+    total_error = tf.reduce_mean((q_values - predicted_values)**2)
     ######
 
     # construct optimization op (with gradient clipping)
