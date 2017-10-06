@@ -129,27 +129,16 @@ def learn(env,
     # Older versions of TensorFlow may require using "VARIABLES" instead of "GLOBAL_VARIABLES"
     ######
 
-    q_values = q_func(obs_t_float, num_actions, 'q_func', reuse=False)
+    q_values_all_actions = q_func(obs_t_float, num_actions, 'q_func', reuse=False)
     q_func_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='q_func')
 
     target_next_q_values = q_func(obs_tp1_float, num_actions, 'target_q_func', reuse=False)
     target_q_func_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='target_q_func')
 
-    # This is used in the double q network
-    # q_double_values = q_func(obs_t_float, num_actions, 'target_q_func', reuse=True)
+    y = rew_t_ph + gamma * (1 - done_mask_ph) * tf.reduce_max(target_next_q_values, axis=1)
+    q_values_for_actions_taken = tf.reduce_sum(tf.one_hot(act_t_ph, num_actions) * q_values_all_actions, axis=1)
 
-    deterministic_actions = tf.argmax(q_values, axis=1)
-
-    double_q_network = False
-    if double_q_network:
-        next_values = tf.reduce_sum(tf.one_hot(deterministic_actions, num_actions) * q_double_values, axis=1)
-        target_q_values = rew_t_ph + gamma * done_mask_ph * next_values
-    else:
-        target_q_values = rew_t_ph + gamma * done_mask_ph * tf.reduce_max(target_next_q_values, axis=1)
-
-    predicted_values = tf.reduce_sum(tf.one_hot(act_t_ph, num_actions) * target_q_values, axis=1)
-
-    total_error = tf.reduce_mean((q_values - predicted_values)**2)
+    total_error = tf.reduce_mean((y - q_values_for_actions_taken)**2)
     ######
 
     # construct optimization op (with gradient clipping)
