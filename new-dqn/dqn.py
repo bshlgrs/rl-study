@@ -20,10 +20,10 @@ def learn(env,
           exploration=LinearSchedule(1000000, 0.1),
           stopping_criterion=None,
           replay_buffer_size=1000000,
-          batch_size=32,
+          batch_size=128,
           gamma=0.99,
           learning_starts=50000,
-          learning_freq=4,
+          learning_freq=16,
           frame_history_len=4,
           target_update_freq=10000,
           grad_norm_clipping=10):
@@ -236,7 +236,7 @@ def learn(env,
                 act_t_ph: act_batch,
                 rew_t_ph: rew_batch,
                 done_mask_ph: done_mask,
-                learning_rate: optimizer_spec.lr_schedule.value(t)
+                learning_rate: optimizer_spec.lr_schedule.value(t) * 4
             })
 
             if t % target_update_freq == 0:

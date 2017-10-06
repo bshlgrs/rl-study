@@ -84,7 +84,7 @@ def atari_learn(env,
 
     dqn.learn(
         env,
-        q_func=duelling_atari_model,
+        q_func=atari_model,
         optimizer_spec=optimizer,
         session=session,
         exploration=exploration_schedule,
