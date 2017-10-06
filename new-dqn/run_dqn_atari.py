@@ -28,6 +28,28 @@ def atari_model(img_in, num_actions, scope, reuse=False):
         return out
 
 
+def duelling_atari_model(img_in, num_actions, scope, reuse=False):
+    with tf.variable_scope(scope, reuse=reuse):
+        with tf.variable_scope('convnet'):
+            conv_layer_1 = layers.convolution2d(img_in, num_outputs=32, kernel_size=8, stride=4, activation_fn=tf.nn.relu)
+            conv_layer_2 = layers.convolution2d(conv_layer_1, num_outputs=64, kernel_size=4, stride=2, activation_fn=tf.nn.relu)
+            conv_layer_3 = layers.convolution2d(conv_layer_2, num_outputs=64, kernel_size=3, stride=1, activation_fn=tf.nn.relu)
+
+        conv_flattened = layers.flatten(conv_layer_3)
+
+        with tf.variable_scope('advantage'):
+            advantage_fc1 = layers.fully_connected(conv_flattened, num_outputs=512, activation_fn=tf.nn.relu)
+            advantage_out = layers.fully_connected(advantage_fc1, num_outputs=num_actions, activation_fn=None)
+
+        with tf.variable_scope('value'):
+            value_fc1 = layers.fully_connected(conv_flattened, num_outputs=512, activation_fn=tf.nn.relu)
+            value_out = tf.reduce_sum(layers.fully_connected(value_fc1, num_outputs=1, activation_fn=tf.nn.relu), axis=1)
+
+        correction = tf.reduce_mean(advantage_out, axis=1)
+
+    return advantage_out + tf.tile(tf.expand_dims(value_out - correction, 1), [1, num_actions])
+
+
 def atari_learn(env,
                 session,
                 num_timesteps):
@@ -62,7 +84,7 @@ def atari_learn(env,
 
     dqn.learn(
         env,
-        q_func=atari_model,
+        q_func=duelling_atari_model,
         optimizer_spec=optimizer,
         session=session,
         exploration=exploration_schedule,
