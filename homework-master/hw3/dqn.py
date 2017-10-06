@@ -1,4 +1,6 @@
 import sys
+from datetime import datetime
+
 import gym.spaces
 import itertools
 import numpy as np
@@ -312,4 +314,5 @@ def learn(env,
             print("episodes %d" % len(episode_rewards))
             print("exploration %f" % exploration.value(t))
             print("learning_rate %f" % optimizer_spec.lr_schedule.value(t))
+            print('current time %s' % datetime.now())
             sys.stdout.flush()
