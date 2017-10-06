@@ -259,5 +259,5 @@ def learn(env,
             sys.stdout.flush()
         if t % SAVE_FREQUENCY == 0 and model_initialized:
             print('saving')
-            saver.save(session, "~/models/model-started-at-%s-t-%d.ckpt"%(start_time, t))
+            saver.save(session, "/home/paperspace/models/model-started-at-%s-t-%d.ckpt"%(start_time, t))
             print('saving done')
