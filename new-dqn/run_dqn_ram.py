@@ -98,6 +98,7 @@ def get_session():
     print("AVAILABLE GPUS: ", get_available_gpus())
     return session
 
+
 def get_env(seed):
     env = gym.make('Pong-ram-v0')
 
@@ -109,6 +110,7 @@ def get_env(seed):
     env = wrap_deepmind_ram(env)
 
     return env
+
 
 def main():
     # Run training

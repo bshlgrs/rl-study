@@ -22,6 +22,7 @@ class NoopResetEnv(gym.Wrapper):
             obs, _, _, _ = self.env.step(0)
         return obs
 
+
 class FireResetEnv(gym.Wrapper):
     def __init__(self, env=None):
         """Take action on reset for environments that are fixed until firing."""
@@ -34,6 +35,7 @@ class FireResetEnv(gym.Wrapper):
         obs, _, _, _ = self.env.step(1)
         obs, _, _, _ = self.env.step(2)
         return obs
+
 
 class EpisodicLifeEnv(gym.Wrapper):
     def __init__(self, env=None):
@@ -52,7 +54,7 @@ class EpisodicLifeEnv(gym.Wrapper):
         # then update lives to handle bonus lives
         lives = self.env.unwrapped.ale.lives()
         if lives < self.lives and lives > 0:
-            # for Qbert somtimes we stay in lives == 0 condtion for a few frames
+            # for Qbert somtimes we stay in lives == 0 condition for a few frames
             # so its important to keep lives > 0, so that we only reset once
             # the environment advertises done.
             done = True
@@ -73,6 +75,7 @@ class EpisodicLifeEnv(gym.Wrapper):
             self.was_real_reset = False
         self.lives = self.env.unwrapped.ale.lives()
         return obs
+
 
 class MaxAndSkipEnv(gym.Wrapper):
     def __init__(self, env=None, skip=4):
@@ -103,6 +106,7 @@ class MaxAndSkipEnv(gym.Wrapper):
         self._obs_buffer.append(obs)
         return obs
 
+
 def _process_frame84(frame):
     img = np.reshape(frame, [210, 160, 3]).astype(np.float32)
     img = img[:, :, 0] * 0.299 + img[:, :, 1] * 0.587 + img[:, :, 2] * 0.114
@@ -110,6 +114,7 @@ def _process_frame84(frame):
     x_t = resized_screen[18:102, :]
     x_t = np.reshape(x_t, [84, 84, 1])
     return x_t.astype(np.uint8)
+
 
 class ProcessFrame84(gym.Wrapper):
     def __init__(self, env=None):
@@ -123,10 +128,12 @@ class ProcessFrame84(gym.Wrapper):
     def _reset(self):
         return _process_frame84(self.env.reset())
 
+
 class ClippedRewardsWrapper(gym.Wrapper):
     def _step(self, action):
         obs, reward, done, info = self.env.step(action)
         return obs, np.sign(reward), done, info
+
 
 def wrap_deepmind_ram(env):
     env = EpisodicLifeEnv(env)
@@ -136,6 +143,7 @@ def wrap_deepmind_ram(env):
         env = FireResetEnv(env)
     env = ClippedRewardsWrapper(env)
     return env
+
 
 def wrap_deepmind(env):
     assert 'NoFrameskip' in env.spec.id

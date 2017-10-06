@@ -12,17 +12,21 @@ from dqn_utils import *
 from atari_wrappers import *
 
 
-def atari_model(ram_in, num_actions, scope, reuse=False):
+def atari_model(img_in, num_actions, scope, reuse=False):
+    # as described in https://storage.googleapis.com/deepmind-data/assets/papers/DeepMindNature14236Paper.pdf
     with tf.variable_scope(scope, reuse=reuse):
-        out = ram_in
-        #out = tf.concat(1,(ram_in[:,4:5],ram_in[:,8:9],ram_in[:,11:13],ram_in[:,21:22],ram_in[:,50:51], ram_in[:,60:61],ram_in[:,64:65]))
+        out = img_in
+        with tf.variable_scope("convnet"):
+            out = layers.convolution2d(out, num_outputs=32, kernel_size=8, stride=4, activation_fn=tf.nn.relu)
+            out = layers.convolution2d(out, num_outputs=64, kernel_size=4, stride=2, activation_fn=tf.nn.relu)
+            out = layers.convolution2d(out, num_outputs=64, kernel_size=3, stride=1, activation_fn=tf.nn.relu)
+        out = layers.flatten(out)
         with tf.variable_scope("action_value"):
-            out = layers.fully_connected(out, num_outputs=256, activation_fn=tf.nn.relu)
-            out = layers.fully_connected(out, num_outputs=128, activation_fn=tf.nn.relu)
-            out = layers.fully_connected(out, num_outputs=64, activation_fn=tf.nn.relu)
+            out = layers.fully_connected(out, num_outputs=512,         activation_fn=tf.nn.relu)
             out = layers.fully_connected(out, num_outputs=num_actions, activation_fn=None)
 
         return out
+
 
 def atari_learn(env,
                 session,
@@ -30,7 +34,7 @@ def atari_learn(env,
     # This is just a rough estimate
     num_iterations = float(num_timesteps) / 4.0
 
-    lr_multiplier = 1.0 
+    lr_multiplier = 1.0
     lr_schedule = PiecewiseSchedule([
                                          (0,                   1e-4 * lr_multiplier),
                                          (num_iterations / 10, 1e-4 * lr_multiplier),
@@ -50,7 +54,7 @@ def atari_learn(env,
 
     exploration_schedule = PiecewiseSchedule(
         [
-            (0, 0.2),
+            (0, 1.0),
             (1e6, 0.1),
             (num_iterations / 2, 0.01),
         ], outside_value=0.01
@@ -68,16 +72,18 @@ def atari_learn(env,
         gamma=0.99,
         learning_starts=50000,
         learning_freq=4,
-        frame_history_len=1,
+        frame_history_len=4,
         target_update_freq=10000,
         grad_norm_clipping=10
     )
     env.close()
 
+
 def get_available_gpus():
     from tensorflow.python.client import device_lib
     local_device_protos = device_lib.list_local_devices()
     return [x.physical_device_desc for x in local_device_protos if x.device_type == 'GPU']
+
 
 def set_global_seeds(i):
     try:
@@ -89,6 +95,7 @@ def set_global_seeds(i):
     np.random.seed(i)
     random.seed(i)
 
+
 def get_session():
     tf.reset_default_graph()
     tf_config = tf.ConfigProto(
@@ -98,24 +105,34 @@ def get_session():
     print("AVAILABLE GPUS: ", get_available_gpus())
     return session
 
-def get_env(seed):
-    env = gym.make('Pong-ram-v0')
+
+def get_env(task, seed):
+    env_id = task.env_id
+
+    env = gym.make(env_id)
 
     set_global_seeds(seed)
     env.seed(seed)
 
-    expt_dir = '/tmp/hw3_vid_dir/'
+    expt_dir = '/tmp/hw3_vid_dir2/'
     env = wrappers.Monitor(env, osp.join(expt_dir, "gym"), force=True)
-    env = wrap_deepmind_ram(env)
+    env = wrap_deepmind(env)
 
     return env
 
+
 def main():
+    # Get Atari games.
+    benchmark = gym.benchmark_spec('Atari40M')
+
+    # Change the index to select a different game.
+    task = benchmark.tasks[3]
+
     # Run training
-    seed = 0 # Use a seed of zero (you may want to randomize the seed!)
-    env = get_env(seed)
+    seed = 0  # Use a seed of zero (you may want to randomize the seed!)
+    env = get_env(task, seed)
     session = get_session()
-    atari_learn(env, session, num_timesteps=int(4e7))
+    atari_learn(env, session, num_timesteps=task.max_timesteps)
 
 if __name__ == "__main__":
     main()

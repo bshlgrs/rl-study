@@ -5,12 +5,13 @@ import gym.spaces
 import itertools
 import numpy as np
 import random
-import tensorflow                as tf
-import tensorflow.contrib.layers as layers
+import tensorflow as tf
 from collections import namedtuple
 from dqn_utils import *
 
+
 OptimizerSpec = namedtuple("OptimizerSpec", ["constructor", "kwargs", "lr_schedule"])
+
 
 def learn(env,
           q_func,
@@ -77,11 +78,13 @@ def learn(env,
         If not None gradients' norms are clipped to this value.
     """
     assert type(env.observation_space) == gym.spaces.Box
-    assert type(env.action_space)      == gym.spaces.Discrete
+    assert type(env.action_space) == gym.spaces.Discrete
 
     ###############
     # BUILD MODEL #
     ###############
+
+    start_time = datetime.now()
 
     if len(env.observation_space.shape) == 1:
         # This means we are running on low-dimensional observations (e.g. RAM)
@@ -154,6 +157,7 @@ def learn(env,
 
     ######
 
+
     print('double:', double)
 
     # construct optimization op (with gradient clipping)
@@ -169,12 +173,19 @@ def learn(env,
         update_target_fn.append(var_target.assign(var))
     update_target_fn = tf.group(*update_target_fn)
 
+
+    ## construct saver
+
+    saver = tf.train.Saver()
+    SAVE_FREQUENCY = 200000
+
     # construct the replay buffer
     replay_buffer = ReplayBuffer(replay_buffer_size, frame_history_len)
 
     ###############
     # RUN ENV     #
     ###############
+
     model_initialized = False
     num_param_updates = 0
     mean_episode_reward      = -float('nan')
@@ -232,7 +243,6 @@ def learn(env,
                 session.run(update_target_fn)
                 num_param_updates += 1
 
-        ### 4. Log progress
         episode_rewards = get_wrapper_by_name(env, "Monitor").get_episode_rewards()
         if len(episode_rewards) > 0:
             mean_episode_reward = np.mean(episode_rewards[-100:])
@@ -247,3 +257,7 @@ def learn(env,
             print("learning_rate %f" % optimizer_spec.lr_schedule.value(t))
             print('current time %s' % datetime.now())
             sys.stdout.flush()
+        if t % SAVE_FREQUENCY == 0 and model_initialized:
+            print('saving')
+            saver.save(session, "~/models/model-started-at-%s-t-%d.ckpt"%(start_time, t))
+            print('saving done')
