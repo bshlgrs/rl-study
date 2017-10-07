@@ -6,7 +6,7 @@ from atari_wrappers import *
 from agent import DQNAgent
 
 
-def atari_learn(num_timesteps: int, task_idx=3):
+def atari_learn(num_timesteps, task_idx=3):
     env = get_env(task_idx)
     session = get_session()
     agent = DQNAgent(env, session)

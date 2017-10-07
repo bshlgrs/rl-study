@@ -7,3 +7,6 @@ def main():
 
     agent.learn(1000001)
     env.close()
+
+if __name__ == '__main__':
+    main()
