@@ -29,10 +29,9 @@ class DQNAgent:
         self.stopping_criterion = None
         self.model = models.Model(session, env, batch_size=batch_size)
 
-
         self.learning_freq = 4 * batch_size / 32
 
-    def learn(self, num_timesteps: int):
+    def learn(self, num_timesteps):
         assert type(self.env.observation_space) == gym.spaces.Box
         assert type(self.env.action_space) == gym.spaces.Discrete
 
