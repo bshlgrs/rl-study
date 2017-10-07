@@ -180,7 +180,7 @@ def get_wrapper_by_name(env, classname):
 
 
 class ReplayBuffer(object):
-    def __init__(self, size: int, frame_history_len : int):
+    def __init__(self, size, frame_history_len):
         """This is a memory efficient implementation of the replay buffer.
 
         The specific memory optimizations use here are:
