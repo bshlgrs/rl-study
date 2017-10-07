@@ -19,15 +19,18 @@ import models
 # frame_history_len = 4
 
 class DQNAgent:
-    def __init__(self, env, session):
+    def __init__(self, env, session, batch_size=32):
         self.env = env
         self.replay_buffer_size = int(1e6)
         self.gamma = 0.99
         self.learning_starts = 50000
-        self.learning_freq = 16  # this is 4 * 4
+
         self.exploration = LinearSchedule(1000000, 0.1)
         self.stopping_criterion = None
-        self.model = models.Model(session, env)
+        self.model = models.Model(session, env, batch_size=batch_size)
+
+
+        self.learning_freq = 4 * batch_size / 32
 
     def learn(self, num_timesteps: int):
         assert type(self.env.observation_space) == gym.spaces.Box

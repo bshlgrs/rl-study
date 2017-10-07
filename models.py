@@ -47,7 +47,7 @@ def duelling_atari_model(img_in, num_actions, scope, reuse=False):
 
 
 class Model:
-    def __init__(self, session, env, q_func=atari_model, double=True):
+    def __init__(self, session, env, q_func=atari_model, double=True, batch_size=32):
         self.session = session
 
         self.q_func = q_func
@@ -57,7 +57,7 @@ class Model:
         self.grad_norm_clipping = 10
         self.num_actions = env.action_space.n
 
-        self.batch_size = 128
+        self.batch_size = batch_size
         self.target_update_freq = 10000
         self.frame_history_len = 4
         self.save_frequency = 250000
