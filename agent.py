@@ -19,7 +19,7 @@ import models
 # frame_history_len = 4
 
 class DQNAgent:
-    def __init__(self, env, session, batch_size=32):
+    def __init__(self, env, session, batch_size=512):
         self.env = env
         self.replay_buffer_size = int(1e6)
         self.gamma = 0.99
