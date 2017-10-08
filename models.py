@@ -135,7 +135,7 @@ class Model:
         variable_summaries(q_values_all_actions)
         merged_summaries = tf.summary.merge_all()
 
-        train_writer = tf.summary.FileWriter('tmp/train', self.session.graph)
+        train_writer = tf.summary.FileWriter('/tmp/train', self.session.graph)
 
         return {
             'train_fn': train_fn,
