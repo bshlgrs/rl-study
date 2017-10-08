@@ -91,7 +91,7 @@ class DQNAgent:
             variables['mean_episode_reward'],
             len(variables['episode_rewards']),
             datetime.now(),
-            variables['q_value_logger'].pop()
+            variables['q_value_log'].pop()
         ))
 
         sys.stdout.flush()
