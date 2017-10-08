@@ -59,7 +59,6 @@ class Model:
         self.num_actions = env.action_space.n
 
         self.batch_size = batch_size
-        self.target_update_freq = 10000
         self.frame_history_len = 4
         self.save_frequency = 250000
 
@@ -76,6 +75,7 @@ class Model:
         self.model_initialized = False
 
         self.learning_rate = tf.placeholder(tf.float32, (), name="learning_rate")
+
 
     @memoized
     def build_model(self):
@@ -157,12 +157,12 @@ class Model:
             self.learning_rate: self.current_learning_rate(t)
         })
 
-        if t % self.target_update_freq == 0:
-            print('updating target fn')
-            self.session.run(self.build_model()['update_target_fn'])
-
         if t % self.save_frequency == 0:
             self.save(t)
+
+    def update_target_network(self):
+        print('updating target fn')
+        self.session.run(self.build_model()['update_target_fn'])
 
     def current_learning_rate(self, t):
         return self.get_optimizer_spec().lr_schedule.value(t)

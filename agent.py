@@ -28,6 +28,7 @@ class DQNAgent:
         self.exploration = LinearSchedule(1000000, 0.1)
         self.stopping_criterion = None
         self.model = models.Model(session, env, batch_size=batch_size)
+        self.target_update_freq = 10000
 
         self.learning_freq = 4 * batch_size / 32
 
@@ -65,6 +66,9 @@ class DQNAgent:
                     t % self.learning_freq == 0 and
                     replay_buffer.can_sample(self.model.batch_size)):
                 self.model.train(replay_buffer.sample(self.model.batch_size), t)
+
+            if t % self.target_update_freq == 0:
+                self.model.update_target_network()
 
             episode_rewards = get_wrapper_by_name(self.env, "Monitor").get_episode_rewards()
             if len(episode_rewards) > 0:
