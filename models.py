@@ -158,6 +158,7 @@ class Model:
         })
 
         if t % self.target_update_freq == 0:
+            print('updating target fn')
             self.session.run(self.build_model()['update_target_fn'])
 
         if t % self.save_frequency == 0:
