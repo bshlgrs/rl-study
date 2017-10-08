@@ -412,7 +412,10 @@ class MeanLogger:
         self.count += 1
 
     def pop(self):
-        res = self.sum/self.count
+        if self.count:
+            res = self.sum/self.count
+        else:
+            res = float('nan')
         self.sum = 0
         self.count = 0
         return res
