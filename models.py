@@ -154,7 +154,7 @@ class Model:
             self.act_t_ph: act_batch,
             self.rew_t_ph: rew_batch,
             self.done_mask_ph: done_mask,
-            self.learning_rate: self.learning_rate(t)
+            self.learning_rate: self.current_learning_rate(t)
         })
 
         if t % self.target_update_freq == 0:
@@ -163,7 +163,7 @@ class Model:
         if t % self.save_frequency == 0:
             self.save(t)
 
-    def learning_rate(self, t):
+    def current_learning_rate(self, t):
         return self.get_optimizer_spec().lr_schedule.value(t)
 
     @memoized
