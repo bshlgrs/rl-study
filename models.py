@@ -8,17 +8,18 @@ OptimizerSpec = namedtuple("OptimizerSpec", ["constructor", "kwargs", "lr_schedu
 BestAction = namedtuple('BestAction', ['action_idx', 'q_value'])
 
 
-def variable_summaries(var):
+def variable_summaries(var, var_name):
     """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
     with tf.name_scope('summaries'):
-        mean = tf.reduce_mean(var)
-        tf.summary.scalar('mean', mean)
-        with tf.name_scope('stddev'):
-            stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
-        tf.summary.scalar('stddev', stddev)
-        tf.summary.scalar('max', tf.reduce_max(var))
-        tf.summary.scalar('min', tf.reduce_min(var))
-        tf.summary.histogram('histogram', var)
+        with tf.name_scope(var_name):
+            mean = tf.reduce_mean(var)
+            tf.summary.scalar('mean', mean)
+            with tf.name_scope('stddev'):
+                stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
+            tf.summary.scalar('stddev', stddev)
+            tf.summary.scalar('max', tf.reduce_max(var))
+            tf.summary.scalar('min', tf.reduce_min(var))
+            tf.summary.histogram('histogram', var)
 
 def atari_model(img_in, num_actions, scope, reuse=False):
     # as described in https://storage.googleapis.com/deepmind-data/assets/papers/DeepMindNature14236Paper.pdf
@@ -106,17 +107,23 @@ class Model:
 
         if self.double:
             all_values_of_next_states = q_func(obs_tp1_float, num_actions, 'q_func', reuse=True)
-            chosen_actions = tf.one_hot(tf.argmax(all_values_of_next_states, axis=1), num_actions)
-            value_of_next_states = tf.reduce_sum(chosen_actions * target_next_q_values, axis=1)
+            chosen_actions = tf.one_hot(tf.argmax(all_values_of_next_states, axis=1), num_actions, name='chosen_actions_onehot')
+            value_of_next_states = tf.reduce_sum(chosen_actions * target_next_q_values, axis=1,
+                                                 name='value_of_next_states')
         else:
-            value_of_next_states = tf.reduce_max(target_next_q_values, axis=1)
+            value_of_next_states = tf.reduce_max(target_next_q_values, axis=1, name='value_of_next_states')
 
-        y = self.rew_t_ph + self.gamma * (1 - self.done_mask_ph) * value_of_next_states
+        y = tf.add(self.rew_t_ph, self.gamma * (1 - self.done_mask_ph) * value_of_next_states, name='y')
 
-        q_values_for_actions_taken = tf.reduce_sum(tf.one_hot(self.act_t_ph, num_actions) * q_values_all_actions, axis=1)
-        action_choices = tf.argmax(q_values_all_actions, axis=1)
+        q_values_for_actions_taken = tf.reduce_sum(tf.one_hot(self.act_t_ph, num_actions) * q_values_all_actions,
+                                                   axis=1,
+                                                   name='q_values_for_actions_taken')
+        action_choices = tf.argmax(q_values_all_actions, axis=1, name='action_choices')
+        best_action_values = tf.reduce_max(q_values_all_actions, axis=1, name='best_action_values')
 
-        total_error = tf.reduce_mean((y - q_values_for_actions_taken) ** 2)
+        variable_summaries(best_action_values, 'best_action_values')
+
+        total_error = tf.reduce_mean((y - q_values_for_actions_taken) ** 2, name='total_error')
 
         optimizer = self.get_optimizer_spec().constructor(
             learning_rate=self.learning_rate,
@@ -130,18 +137,19 @@ class Model:
         for var, var_target in zip(sorted(q_func_vars, key=lambda v: v.name),
                                    sorted(target_q_func_vars, key=lambda v: v.name)):
             update_target_fn.append(var_target.assign(var))
-        update_target_fn = tf.group(*update_target_fn)
+        update_target_fn = tf.group(*update_target_fn, name='update_target_fn')
 
-        variable_summaries(q_values_all_actions)
+        variable_summaries(q_values_all_actions, 'q_values_all_actions')
         merged_summaries = tf.summary.merge_all()
 
         train_writer = tf.summary.FileWriter('/tmp/train', self.session.graph)
+
 
         return {
             'train_fn': train_fn,
             'update_target_fn': update_target_fn,
             'action_choices': action_choices,
-            'best_action_values': tf.reduce_max(q_values_all_actions, axis=1),
+            'best_action_values': best_action_values,
             'train_writer': train_writer,
             'merged_summaries': merged_summaries
         }
