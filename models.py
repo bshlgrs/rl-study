@@ -154,7 +154,7 @@ class Model:
             self.act_t_ph: act_batch,
             self.rew_t_ph: rew_batch,
             self.done_mask_ph: done_mask,
-            self.learning_rate: self.optimizer.lr_schedule.value(t) * 4
+            self.learning_rate: self.get_optimizer_spec().lr_schedule.value(t) * 4
         })
 
         if t % self.target_update_freq == 0:
