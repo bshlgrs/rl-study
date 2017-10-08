@@ -62,13 +62,12 @@ class DQNAgent:
             replay_buffer.store_effect(idx, action, reward, done)
             last_obs = obs
 
-            if (t > self.learning_starts and
-                    t % self.learning_freq == 0 and
-                    replay_buffer.can_sample(self.model.batch_size)):
-                self.model.train(replay_buffer.sample(self.model.batch_size), t)
+            if t > self.learning_starts:
+                if t % self.learning_freq == 0 and replay_buffer.can_sample(self.model.batch_size):
+                    self.model.train(replay_buffer.sample(self.model.batch_size), t)
 
-            if t % self.target_update_freq == 0:
-                self.model.update_target_network()
+                if t % self.target_update_freq == 0:
+                    self.model.update_target_network()
 
             episode_rewards = get_wrapper_by_name(self.env, "Monitor").get_episode_rewards()
             if len(episode_rewards) > 0:
