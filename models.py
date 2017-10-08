@@ -10,16 +10,17 @@ BestAction = namedtuple('BestAction', ['action_idx', 'q_value'])
 
 def variable_summaries(var, var_name):
     """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
-    with tf.name_scope('summaries'):
-        with tf.name_scope(var_name):
-            mean = tf.reduce_mean(var)
-            tf.summary.scalar('mean', mean)
-            with tf.name_scope('stddev'):
-                stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
-            tf.summary.scalar('stddev', stddev)
-            tf.summary.scalar('max', tf.reduce_max(var))
-            tf.summary.scalar('min', tf.reduce_min(var))
-            tf.summary.histogram('histogram', var)
+
+    with tf.name_scope(var_name+"-summary"):
+        mean = tf.reduce_mean(var)
+        tf.summary.scalar('mean', mean)
+        with tf.name_scope('stddev'):
+            stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
+        tf.summary.scalar('stddev', stddev)
+        tf.summary.scalar('max', tf.reduce_max(var))
+        tf.summary.scalar('min', tf.reduce_min(var))
+        tf.summary.histogram('histogram', var)
+
 
 def atari_model(img_in, num_actions, scope, reuse=False):
     # as described in https://storage.googleapis.com/deepmind-data/assets/papers/DeepMindNature14236Paper.pdf
@@ -88,6 +89,7 @@ class Model:
         self.model_initialized = False
 
         self.learning_rate = tf.placeholder(tf.float32, (), name="learning_rate")
+        self.train_writer = tf.summary.FileWriter('/tmp/train', self.session.graph)
 
 
     @memoized
@@ -142,15 +144,11 @@ class Model:
         variable_summaries(q_values_all_actions, 'q_values_all_actions')
         merged_summaries = tf.summary.merge_all()
 
-        train_writer = tf.summary.FileWriter('/tmp/train', self.session.graph)
-
-
         return {
             'train_fn': train_fn,
             'update_target_fn': update_target_fn,
             'action_choices': action_choices,
             'best_action_values': best_action_values,
-            'train_writer': train_writer,
             'merged_summaries': merged_summaries
         }
 
@@ -167,7 +165,6 @@ class Model:
 
         train_fn = self.build_model()['train_fn']
         merged_summaries = self.build_model()['merged_summaries']
-        train_writer = self.build_model()['train_writer']
 
         if not self.model_initialized:
             print('initializing model')
@@ -186,7 +183,7 @@ class Model:
             self.learning_rate: self.current_learning_rate(t)
         })
 
-        train_writer.add_summary(summary, t)
+        self.train_writer.add_summary(summary, t)
 
         if t % self.save_frequency == 0:
             self.save(t)
