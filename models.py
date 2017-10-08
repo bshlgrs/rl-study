@@ -7,6 +7,7 @@ import tensorflow.contrib.layers as layers
 OptimizerSpec = namedtuple("OptimizerSpec", ["constructor", "kwargs", "lr_schedule"])
 BestAction = namedtuple('BestAction', ['action_idx', 'q_value'])
 
+
 def atari_model(img_in, num_actions, scope, reuse=False):
     # as described in https://storage.googleapis.com/deepmind-data/assets/papers/DeepMindNature14236Paper.pdf
     with tf.variable_scope(scope, reuse=reuse):
@@ -102,14 +103,13 @@ class Model:
             value_of_next_states = tf.reduce_max(target_next_q_values, axis=1)
 
         y = self.rew_t_ph + self.gamma * (1 - self.done_mask_ph) * value_of_next_states
-        q_values_for_actions_taken = tf.reduce_sum(tf.one_hot(self.act_t_ph, num_actions) * q_values_all_actions, axis=1)
 
+        q_values_for_actions_taken = tf.reduce_sum(tf.one_hot(self.act_t_ph, num_actions) * q_values_all_actions, axis=1)
         action_choices = tf.argmax(q_values_all_actions, axis=1)
 
         total_error = tf.reduce_mean((y - q_values_for_actions_taken) ** 2)
 
         # construct optimization op (with gradient clipping)
-
         train_fn = minimize_and_clip(self.optimizer, total_error,
                                      var_list=q_func_vars, clip_val=self.grad_norm_clipping)
 
@@ -154,7 +154,7 @@ class Model:
             self.act_t_ph: act_batch,
             self.rew_t_ph: rew_batch,
             self.done_mask_ph: done_mask,
-            self.learning_rate: self.get_optimizer_spec().lr_schedule.value(t) * 4
+            self.learning_rate: self.optimizer.lr_schedule.value(t) * 4
         })
 
         if t % self.target_update_freq == 0:
