@@ -88,7 +88,7 @@ class DQNAgent:
         )
 
     def report(self, variables):
-        print("%d,%f,%d,%s,%d" % (
+        print("%d,%f,%d,%s,%f" % (
             variables['t'],
             variables['mean_episode_reward'],
             len(variables['episode_rewards']),
