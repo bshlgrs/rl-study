@@ -7,6 +7,7 @@ import random
 import functools
 import collections
 
+
 def huber_loss(x, delta=1.0):
     # https://en.wikipedia.org/wiki/Huber_loss
     return tf.select(
@@ -14,6 +15,7 @@ def huber_loss(x, delta=1.0):
         tf.square(x) * 0.5,
         delta * (tf.abs(x) - 0.5 * delta)
     )
+
 
 def sample_n_unique(sampling_f, n):
     """Helper function. Given a function `sampling_f` that returns
@@ -26,10 +28,12 @@ def sample_n_unique(sampling_f, n):
             res.append(candidate)
     return res
 
+
 class Schedule(object):
     def value(self, t):
         """Value of the schedule at time t"""
         raise NotImplementedError()
+
 
 class ConstantSchedule(object):
     def __init__(self, value):
@@ -161,12 +165,13 @@ def initialize_interdependent_variables(session, vars_list, feed_dict):
             except tf.errors.FailedPreconditionError:
                 new_vars_left.append(v)
         if len(new_vars_left) >= len(vars_left):
-            # This can happend if the variables all depend on each other, or more likely if there's
+            # This can happen if the variables all depend on each other, or more likely if there's
             # another variable outside of the list, that still needs to be initialized. This could be
             # detected here, but life's finite.
             raise Exception("Cycle in variable dependencies, or external precondition unsatisfied.")
         else:
             vars_left = new_vars_left
+
 
 def get_wrapper_by_name(env, classname):
     currentenv = env
@@ -229,7 +234,6 @@ class ReplayBuffer(object):
         done_mask      = np.array([1.0 if self.done[idx] else 0.0 for idx in idxes], dtype=np.float32)
 
         return obs_batch, act_batch, rew_batch, next_obs_batch, done_mask
-
 
     def sample(self, batch_size):
         """Sample `batch_size` different transitions.

@@ -5,7 +5,7 @@ from collections import namedtuple
 import tensorflow.contrib.layers as layers
 
 OptimizerSpec = namedtuple("OptimizerSpec", ["constructor", "kwargs", "lr_schedule"])
-
+BestAction = namedtuple('BestAction', ['action_idx', 'q_value'])
 
 def atari_model(img_in, num_actions, scope, reuse=False):
     # as described in https://storage.googleapis.com/deepmind-data/assets/papers/DeepMindNature14236Paper.pdf
@@ -47,7 +47,7 @@ def duelling_atari_model(img_in, num_actions, scope, reuse=False):
 
 
 class Model:
-    def __init__(self, session, env, q_func=atari_model, double=True, batch_size=32):
+    def __init__(self, session, env, q_func=atari_model, double=True, batch_size=512):
         self.session = session
 
         self.q_func = q_func
@@ -104,7 +104,7 @@ class Model:
         y = self.rew_t_ph + self.gamma * (1 - self.done_mask_ph) * value_of_next_states
         q_values_for_actions_taken = tf.reduce_sum(tf.one_hot(self.act_t_ph, num_actions) * q_values_all_actions, axis=1)
 
-        deterministic_actions = tf.argmax(q_values_all_actions, axis=1)
+        action_choices = tf.argmax(q_values_all_actions, axis=1)
 
         total_error = tf.reduce_mean((y - q_values_for_actions_taken) ** 2)
 
@@ -120,27 +120,25 @@ class Model:
             update_target_fn.append(var_target.assign(var))
         update_target_fn = tf.group(*update_target_fn)
 
-        return [train_fn, update_target_fn, deterministic_actions]
-
-    @memoized
-    def get_train_fn(self):
-        return self.build_model()[0]
-
-    @memoized
-    def get_update_target_fn(self):
-        return self.build_model()[1]
-
-    @memoized
-    def get_deterministic_actions(self):
-        return self.build_model()[2]
+        return {
+            'train_fn': train_fn,
+            'update_target_fn': update_target_fn,
+            'action_choices': action_choices,
+            'best_action_values': tf.reduce_max(q_values_all_actions, axis=1)
+        }
 
     def choose_best_action(self, obs):
-        return self.session.run(self.get_deterministic_actions(), feed_dict={self.obs_t_ph: np.array([obs])})[0]
+        action_choices_fn = self.build_model()['action_choices']
+        best_action_values_fn = self.build_model()['best_action_values']
+
+        [action_choices, best_action_values] = \
+            self.session.run([action_choices_fn, best_action_values_fn], feed_dict={self.obs_t_ph: np.array([obs])})
+        return BestAction(action_choices[0], best_action_values[0])
 
     def train(self, samples, t):
         obs_t_batch, act_batch, rew_batch, obs_tp1_batch, done_mask = samples
 
-        train_fn = self.get_train_fn()
+        train_fn = self.build_model()['train_fn']
 
         if not self.model_initialized:
             print('initializing model')
@@ -160,10 +158,11 @@ class Model:
         })
 
         if t % self.target_update_freq == 0:
-            self.session.run(self.get_update_target_fn())
+            self.session.run(self.build_model()['update_target_fn'])
 
         if t % self.save_frequency == 0:
             self.save(t)
+
     @memoized
     def get_optimizer_spec(self):
         # This is just a rough estimate

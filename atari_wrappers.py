@@ -135,16 +135,6 @@ class ClippedRewardsWrapper(gym.Wrapper):
         return obs, np.sign(reward), done, info
 
 
-def wrap_deepmind_ram(env):
-    env = EpisodicLifeEnv(env)
-    env = NoopResetEnv(env, noop_max=30)
-    env = MaxAndSkipEnv(env, skip=4)
-    if 'FIRE' in env.unwrapped.get_action_meanings():
-        env = FireResetEnv(env)
-    env = ClippedRewardsWrapper(env)
-    return env
-
-
 def wrap_deepmind(env):
     assert 'NoFrameskip' in env.spec.id
     env = EpisodicLifeEnv(env)

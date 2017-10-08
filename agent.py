@@ -42,6 +42,7 @@ class DQNAgent:
 
         last_obs = self.env.reset()
         done = False
+        q_value_sum = 0
 
         for t in range(num_timesteps):
             if done:
@@ -52,7 +53,9 @@ class DQNAgent:
             if random.random() < self.exploration.value(t) or not self.model.model_initialized:
                 action = self.env.action_space.sample()
             else:
-                action = self.model.choose_best_action(replay_buffer.encode_recent_observation())
+                best_action = self.model.choose_best_action(replay_buffer.encode_recent_observation())
+                action = best_action.action_idx
+                q_value_sum += best_action.q_value
 
             obs, reward, done, info = self.env.step(action)
             replay_buffer.store_effect(idx, action, reward, done)
@@ -67,8 +70,11 @@ class DQNAgent:
             if len(episode_rewards) > 0:
                 mean_episode_reward = np.mean(episode_rewards[-100:])
             if t % log_rate == 0:
-                print("%d,%f,%d,%s" %(t, mean_episode_reward, len(episode_rewards), datetime.now()))
-                sys.stdout.flush()
+                self.report(locals())
+
+                q_value_sum = 0
+
+        self.report(locals())
 
     @memoized
     def exploration_schedule(self):
@@ -80,3 +86,14 @@ class DQNAgent:
                 (4e6 / 2, 0.01),
             ], outside_value=0.01
         )
+
+    def report(self, variables):
+        print("%d,%f,%d,%s,%d" % (
+            variables['t'],
+            variables['mean_episode_reward'],
+            len(variables['episode_rewards']),
+            datetime.now(),
+            variables['q_value_sum']
+        ))
+
+        sys.stdout.flush()
