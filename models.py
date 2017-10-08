@@ -8,6 +8,18 @@ OptimizerSpec = namedtuple("OptimizerSpec", ["constructor", "kwargs", "lr_schedu
 BestAction = namedtuple('BestAction', ['action_idx', 'q_value'])
 
 
+def variable_summaries(var):
+    """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
+    with tf.name_scope('summaries'):
+        mean = tf.reduce_mean(var)
+        tf.summary.scalar('mean', mean)
+        with tf.name_scope('stddev'):
+            stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
+        tf.summary.scalar('stddev', stddev)
+        tf.summary.scalar('max', tf.reduce_max(var))
+        tf.summary.scalar('min', tf.reduce_min(var))
+        tf.summary.histogram('histogram', var)
+
 def atari_model(img_in, num_actions, scope, reuse=False):
     # as described in https://storage.googleapis.com/deepmind-data/assets/papers/DeepMindNature14236Paper.pdf
     with tf.variable_scope(scope, reuse=reuse):
@@ -120,11 +132,18 @@ class Model:
             update_target_fn.append(var_target.assign(var))
         update_target_fn = tf.group(*update_target_fn)
 
+        variable_summaries(q_values_all_actions)
+        merged_summaries = tf.summary.merge_all()
+
+        train_writer = tf.summary.FileWriter('tmp/train', self.session.graph)
+
         return {
             'train_fn': train_fn,
             'update_target_fn': update_target_fn,
             'action_choices': action_choices,
-            'best_action_values': tf.reduce_max(q_values_all_actions, axis=1)
+            'best_action_values': tf.reduce_max(q_values_all_actions, axis=1),
+            'train_writer': train_writer,
+            'merged_summaries': merged_summaries
         }
 
     def choose_best_action(self, obs):
@@ -139,6 +158,8 @@ class Model:
         obs_t_batch, act_batch, rew_batch, obs_tp1_batch, done_mask = samples
 
         train_fn = self.build_model()['train_fn']
+        merged_summaries = self.build_model()['merged_summaries']
+        train_writer = self.build_model()['train_writer']
 
         if not self.model_initialized:
             print('initializing model')
@@ -148,7 +169,7 @@ class Model:
             })
             self.model_initialized = True
 
-        self.session.run(train_fn, feed_dict={
+        _, summary = self.session.run([train_fn, merged_summaries], feed_dict={
             self.obs_t_ph: obs_t_batch,
             self.obs_tp1_ph: obs_tp1_batch,
             self.act_t_ph: act_batch,
@@ -156,6 +177,8 @@ class Model:
             self.done_mask_ph: done_mask,
             self.learning_rate: self.current_learning_rate(t)
         })
+
+        train_writer.add_summary(summary, t)
 
         if t % self.save_frequency == 0:
             self.save(t)
