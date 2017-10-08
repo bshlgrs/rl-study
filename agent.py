@@ -42,7 +42,7 @@ class DQNAgent:
 
         last_obs = self.env.reset()
         done = False
-        q_value_sum = 0
+        q_value_log = MeanLogger()
 
         for t in range(num_timesteps):
             if done:
@@ -55,7 +55,7 @@ class DQNAgent:
             else:
                 best_action = self.model.choose_best_action(replay_buffer.encode_recent_observation())
                 action = best_action.action_idx
-                q_value_sum += best_action.q_value
+                q_value_log.log(best_action.q_value)
 
             obs, reward, done, info = self.env.step(action)
             replay_buffer.store_effect(idx, action, reward, done)
@@ -71,8 +71,6 @@ class DQNAgent:
                 mean_episode_reward = np.mean(episode_rewards[-100:])
             if t % log_rate == 0:
                 self.report(locals())
-
-                q_value_sum = 0
 
         self.report(locals())
 
@@ -93,8 +91,7 @@ class DQNAgent:
             variables['mean_episode_reward'],
             len(variables['episode_rewards']),
             datetime.now(),
-
-            variables['q_value_sum']
+            variables['q_value_logger'].pop()
         ))
 
         sys.stdout.flush()

@@ -400,3 +400,19 @@ class memoized(object):
     def __get__(self, obj, objtype):
         '''Support instance methods.'''
         return functools.partial(self.__call__, obj)
+
+
+class MeanLogger:
+    def __init__(self):
+        self.sum = 0
+        self.count = 0
+
+    def log(self, val):
+        self.sum += val
+        self.count += 1
+
+    def pop(self):
+        res = self.sum/self.count
+        self.sum = 0
+        self.count = 0
+        return res
