@@ -76,9 +76,6 @@ class Model:
         self.model_initialized = False
 
         self.learning_rate = tf.placeholder(tf.float32, (), name="learning_rate")
-        self.optimizer = self.get_optimizer_spec().constructor(
-            learning_rate=self.learning_rate,
-            **self.get_optimizer_spec().kwargs)
 
     @memoized
     def build_model(self):
@@ -109,8 +106,11 @@ class Model:
 
         total_error = tf.reduce_mean((y - q_values_for_actions_taken) ** 2)
 
+        optimizer = self.get_optimizer_spec().constructor(
+            learning_rate=self.learning_rate,
+            **self.get_optimizer_spec().kwargs)
         # construct optimization op (with gradient clipping)
-        train_fn = minimize_and_clip(self.optimizer, total_error,
+        train_fn = minimize_and_clip(optimizer, total_error,
                                      var_list=q_func_vars, clip_val=self.grad_norm_clipping)
 
         # update_target_fn will be called periodically to copy Q network to target Q network
