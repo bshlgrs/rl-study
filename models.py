@@ -79,11 +79,11 @@ class Model:
 
         self.start_time = datetime.datetime.now()
 
-        self.obs_t_ph = tf.placeholder(tf.uint8, [None] + list(self.input_shape))
-        self.act_t_ph = tf.placeholder(tf.int32, [None])
-        self.rew_t_ph = tf.placeholder(tf.float32, [None])
-        self.obs_tp1_ph = tf.placeholder(tf.uint8, [None] + list(self.input_shape))
-        self.done_mask_ph = tf.placeholder(tf.float32, [None])
+        self.obs_t_ph = tf.placeholder(tf.uint8, [None] + list(self.input_shape), name='obs_t_ph')
+        self.act_t_ph = tf.placeholder(tf.int32, [None], name='act_t_ph')
+        self.rew_t_ph = tf.placeholder(tf.float32, [None], name='rew_t_ph')
+        self.obs_tp1_ph = tf.placeholder(tf.uint8, [None] + list(self.input_shape), name='obs_tp1_ph')
+        self.done_mask_ph = tf.placeholder(tf.float32, [None], name='done_mask_ph')
         self.model_initialized = False
 
         self.learning_rate = tf.placeholder(tf.float32, (), name="learning_rate")
