@@ -133,7 +133,7 @@ class Model:
 
         [action_choices, best_action_values] = \
             self.session.run([action_choices_fn, best_action_values_fn], feed_dict={self.obs_t_ph: np.array([obs])})
-        return BestAction(action_choices[0], best_action_values[0])
+        return BestAction(action_idx=action_choices[0], q_value=best_action_values[0])
 
     def train(self, samples, t):
         obs_t_batch, act_batch, rew_batch, obs_tp1_batch, done_mask = samples
@@ -154,7 +154,7 @@ class Model:
             self.act_t_ph: act_batch,
             self.rew_t_ph: rew_batch,
             self.done_mask_ph: done_mask,
-            self.learning_rate: self.get_optimizer_spec().lr_schedule.value(t) * 4
+            self.learning_rate: self.learning_rate(t)
         })
 
         if t % self.target_update_freq == 0:
@@ -162,6 +162,9 @@ class Model:
 
         if t % self.save_frequency == 0:
             self.save(t)
+
+    def learning_rate(self, t):
+        return self.get_optimizer_spec().lr_schedule.value(t)
 
     @memoized
     def get_optimizer_spec(self):
