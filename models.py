@@ -163,11 +163,7 @@ class Model:
             self.session.run(self.get_update_target_fn())
 
         if t % self.save_frequency == 0:
-            print('saving!')
-            self.get_saver().save(self.session,
-                            "/home/paperspace/models/model-started-at-%s-t-%d.ckpt" % (self.start_time, t))
-            print('saving done')
-
+            self.save(t)
     @memoized
     def get_optimizer_spec(self):
         # This is just a rough estimate
@@ -190,3 +186,9 @@ class Model:
     @memoized
     def get_saver(self):
         return tf.train.Saver()
+
+    def save(self, t):
+        print('saving!')
+        self.get_saver().save(self.session,
+                              "/home/paperspace/models/model-started-at-%s-t-%d.ckpt" % (self.start_time, t))
+        print('saving done')

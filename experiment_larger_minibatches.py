@@ -7,6 +7,7 @@ def main():
     agent = DQNAgent(env, session, batch_size=512)
 
     agent.learn(500001)
+    agent.model.save()
     env.close()
 
 if __name__ == '__main__':
