@@ -86,12 +86,13 @@ class DQNAgent:
         )
 
     def report(self, variables):
-        print("%d,%f,%d,%s,%f" % (
+        print("%d,%f,%d,%s,%f,%f" % (
             variables['t'],
             variables['mean_episode_reward'],
             len(variables['episode_rewards']),
             datetime.now(),
-            variables['q_value_log'].pop()
+            variables['q_value_log'].pop(),
+            self.model.current_learning_rate(variables['t'])
         ))
 
         sys.stdout.flush()
