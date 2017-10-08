@@ -169,7 +169,7 @@ class Model:
     @memoized
     def get_optimizer_spec(self):
         # This is just a rough estimate
-        num_iterations = float(2e6) / 4.0
+        num_iterations = float(2e6)
 
         lr_multiplier = self.batch_size / 32.0
         lr_schedule = PiecewiseSchedule([
