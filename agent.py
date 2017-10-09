@@ -29,7 +29,7 @@ class DQNAgent:
         self.stopping_criterion = None
         self.model = models.Model(session, env, batch_size=batch_size)
         self.target_update_freq = 10000
-
+        self.log_rate = 10000
         self.learning_freq = 4 * batch_size / 32
 
     def learn(self, num_timesteps):
@@ -39,7 +39,7 @@ class DQNAgent:
         replay_buffer = ReplayBuffer(self.replay_buffer_size, self.model.frame_history_len)
 
         mean_episode_reward = -float('nan')
-        log_rate = 10000
+
 
         last_obs = self.env.reset()
         done = False
@@ -70,7 +70,7 @@ class DQNAgent:
             episode_rewards = get_wrapper_by_name(self.env, "Monitor").get_episode_rewards()
             if len(episode_rewards) > 0:
                 mean_episode_reward = np.mean(episode_rewards[-100:])
-            if t % log_rate == 0:
+            if t % self.log_rate == 0:
                 self.report(locals())
 
         self.report(locals())

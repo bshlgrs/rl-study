@@ -23,12 +23,14 @@ def variable_summaries(var, var_name):
 
 
 def scalar_summary(var_name):
-    tf.summary.scalar('summary-'+var_name, tf.get_variable(var_name, initializer=0))
+    with tf.variable_scope('scalar-summary'):
+        tf.summary.scalar(var_name, tf.get_variable(var_name, initializer=0))
 
 
 def scalar_summaries(names):
     for name in names:
         scalar_summary(name)
+
 
 def atari_model(img_in, num_actions, scope, reuse=False):
     # as described in https://storage.googleapis.com/deepmind-data/assets/papers/DeepMindNature14236Paper.pdf
@@ -234,5 +236,6 @@ class Model:
 
     def log_agent_info(self, info):
         if self.model_initialized:
-            for key, value in info.items():
-                tf.get_variable(key).assign(value)
+            with tf.variable_scope('scalar-summary', reuse=True):
+                for key, value in info.items():
+                    tf.get_variable(key).assign(value)

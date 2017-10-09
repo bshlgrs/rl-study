@@ -7,9 +7,8 @@ def main():
     agent = DQNAgent(env, session, batch_size=512)
     agent.learning_starts = 1
     agent.learning_freq = 1
-
+    agent.log_rate = 2
     agent.learn(3)
-
 
     env.close()
 
