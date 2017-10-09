@@ -23,7 +23,7 @@ def variable_summaries(var, var_name):
 
 
 def scalar_summary(var_name):
-    tf.summary.scalar('summary-'+var_name, tf.get_variable(var_name, (), initializer=0))
+    tf.summary.scalar('summary-'+var_name, tf.get_variable(var_name, initializer=0))
 
 
 def scalar_summaries(names):
