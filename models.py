@@ -23,11 +23,13 @@ def variable_summaries(var, var_name):
 
 
 def scalar_summary(var_name):
-    return tf.summary.scalar(var_name, tf.get_variable(var_name, initializer=0.))
+    var = tf.get_variable(var_name, initializer=0.)
+    tf.summary.scalar(var_name, var)
+    return var
 
 
 def scalar_summaries(names):
-    return [scalar_summary(name) for name in names]
+    return {name: scalar_summary(name) for name in names}
 
 
 def atari_model(img_in, num_actions, scope, reuse=False):
@@ -148,7 +150,7 @@ class Model:
 
         variable_summaries(q_values_all_actions, 'q_values_all_actions')
 
-        scalar_summaries(['epsilon', 'mean_episode_reward', 'num_episodes', 'learning_rate'])
+        self.summarized_scalars = scalar_summaries(['epsilon', 'mean_episode_reward', 'num_episodes', 'learning_rate'])
 
         self.train_fn = train_fn
         self.update_target_fn = update_target_fn
@@ -169,7 +171,7 @@ class Model:
     def log(self, info, t):
         if self.model_initialized:
             for key, value in info.items():
-                self.session.run(tf.get_variable(key).assign(float(value)))
+                self.session.run(self.summarized_scalars[key].assign(float(value)))
 
             merged_summaries = self.merged_summaries
             summary = self.session.run(merged_summaries)
