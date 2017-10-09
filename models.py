@@ -86,8 +86,6 @@ class Model:
         self.frame_history_len = 4
         self.save_frequency = 250000
 
-        self.log_rate = 1000
-
         img_h, img_w, img_c = env.observation_space.shape
         self.input_shape = (img_h, img_w, self.frame_history_len * img_c)
 
@@ -198,8 +196,7 @@ class Model:
         if t % self.save_frequency == 0:
             self.save(t)
 
-        if t % self.log_rate == 0:
-            self.train_writer.add_summary(summary, t)
+        self.train_writer.add_summary(summary, t)
 
     def update_target_network(self):
         self.session.run(self.update_target_fn)
