@@ -19,7 +19,7 @@ import models
 # frame_history_len = 4
 
 class DQNAgent:
-    def __init__(self, env, session, batch_size=512):
+    def __init__(self, env, session, batch_size=32):
         self.env = env
         self.replay_buffer_size = int(1e6)
         self.gamma = 0.99
@@ -43,7 +43,6 @@ class DQNAgent:
 
         last_obs = self.env.reset()
         done = False
-        q_value_log = MeanLogger()
 
         for t in range(num_timesteps):
             if done:
@@ -56,7 +55,6 @@ class DQNAgent:
             else:
                 best_action = self.model.choose_best_action(replay_buffer.encode_recent_observation())
                 action = best_action.action_idx
-                q_value_log.log(best_action.q_value)
 
             obs, reward, done, info = self.env.step(action)
             replay_buffer.store_effect(idx, action, reward, done)
@@ -82,20 +80,19 @@ class DQNAgent:
         return PiecewiseSchedule(
             [
                 (0, 1.0),
-                (1e6, 0.1),
+                (50000, 0.2),
                 # should be num_iterations
                 (4e6 / 2, 0.01),
             ], outside_value=0.01
         )
 
     def report(self, variables):
-        print("%d,%f,%d,%s,%f,%f" % (
-            variables['t'],
-            variables['mean_episode_reward'],
-            len(variables['episode_rewards']),
-            datetime.now(),
-            variables['q_value_log'].pop(),
-            self.model.current_learning_rate(variables['t'])
-        ))
+        t = variables['t']
 
+        self.model.log_agent_info({
+            'epsilon': self.exploration.value(t),
+            'mean_episode_reward': variables['mean_episode_reward'],
+            'num_episodes': len(variables['episode_rewards']),
+            'learning_rate': self.model.current_learning_rate(variables['t'])
+        }, t)
         sys.stdout.flush()

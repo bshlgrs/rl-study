@@ -22,6 +22,14 @@ def variable_summaries(var, var_name):
         tf.summary.histogram('histogram', var)
 
 
+def scalar_summary(var_name):
+    tf.summary.scalar('summary-'+var_name, tf.get_variable(var_name))
+
+
+def scalar_summaries(names):
+    for name in names:
+        scalar_summary(name)
+
 def atari_model(img_in, num_actions, scope, reuse=False):
     # as described in https://storage.googleapis.com/deepmind-data/assets/papers/DeepMindNature14236Paper.pdf
     with tf.variable_scope(scope, reuse=reuse):
@@ -116,6 +124,7 @@ class Model:
         q_values_for_actions_taken = tf.reduce_sum(tf.one_hot(self.act_t_ph, num_actions) * q_values_all_actions,
                                                    axis=1,
                                                    name='q_values_for_actions_taken')
+
         action_choices = tf.argmax(q_values_all_actions, axis=1, name='action_choices')
         best_action_values = tf.reduce_max(q_values_all_actions, axis=1, name='best_action_values')
 
@@ -138,6 +147,10 @@ class Model:
         update_target_fn = tf.group(*update_target_fn, name='update_target_fn')
 
         variable_summaries(q_values_all_actions, 'q_values_all_actions')
+
+        scalar_summaries(['epsilon', ])
+
+
         merged_summaries = tf.summary.merge_all()
 
         self.train_fn = train_fn
@@ -219,3 +232,8 @@ class Model:
         self.get_saver().save(self.session,
                               "/home/paperspace/models/model-started-at-%s-t-%d.ckpt" % (self.start_time, t))
         print('saving done')
+
+    def log_agent_info(self, info, t):
+        self.epsilon.assign(info['epsilon'])
+        self.epsilon.assign(info['epsilon'])
+        pass
