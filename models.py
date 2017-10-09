@@ -183,7 +183,10 @@ class Model:
             })
             self.model_initialized = True
 
-        self.session.run(train_fn, feed_dict={
+        for key, value in info.items():
+            self.session.run(self.summarized_scalars[key].assign(float(value)))
+
+        summary, _ = self.session.run([self.merged_summaries, train_fn], feed_dict={
             self.obs_t_ph: obs_t_batch,
             self.obs_tp1_ph: obs_tp1_batch,
             self.act_t_ph: act_batch,
@@ -196,11 +199,6 @@ class Model:
             self.save(t)
 
         if t % self.log_rate == 0:
-            for key, value in info.items():
-                self.session.run(self.summarized_scalars[key].assign(float(value)))
-
-            merged_summaries = self.merged_summaries
-            summary = self.session.run(merged_summaries)
             self.train_writer.add_summary(summary, t)
 
     def update_target_network(self):
