@@ -19,7 +19,7 @@ class DQNAgent:
         self.stopping_criterion = None
         self.model = models.Model(session, env, batch_size=batch_size)
         self.target_update_freq = 10000
-        self.log_rate = 10000
+
         self.learning_freq = 4 * batch_size / 32
 
     def learn(self, num_timesteps):
@@ -39,6 +39,7 @@ class DQNAgent:
 
             idx = replay_buffer.store_frame(last_obs)
 
+            # acting
             if random.random() < self.exploration.value(t) or not self.model.model_initialized:
                 action = self.env.action_space.sample()
             else:
@@ -49,23 +50,23 @@ class DQNAgent:
             replay_buffer.store_effect(idx, action, reward, done)
             last_obs = obs
 
-            if t > self.learning_starts:
-                if t % self.learning_freq == 0 and replay_buffer.can_sample(self.model.batch_size):
-                    self.model.train(replay_buffer.sample(self.model.batch_size), t)
-
-                if t % self.target_update_freq == 0:
-                    self.model.update_target_network()
-
+            # logging stuff
             episode_rewards = get_wrapper_by_name(self.env, "Monitor").get_episode_rewards()
             if len(episode_rewards) > 0:
                 mean_episode_reward = np.mean(episode_rewards[-100:])
 
-            if t % self.log_rate == 0:
-                info = {
-                    'epsilon': self.exploration.value(t),
-                    'mean_episode_reward': mean_episode_reward,
-                    'num_episodes': len(episode_rewards),
-                    'learning_rate': self.model.current_learning_rate(t)
-                }
+            # training
+            if t > self.learning_starts:
+                if t % self.learning_freq == 0 and replay_buffer.can_sample(self.model.batch_size):
+                    info = {
+                        'epsilon': self.exploration.value(t),
+                        'mean_episode_reward': mean_episode_reward,
+                        'num_episodes': len(episode_rewards),
+                        'learning_rate': self.model.current_learning_rate(t)
+                    }
 
-                self.model.log(info, t)
+                    self.model.train(replay_buffer.sample(self.model.batch_size), info, t)
+
+                if t % self.target_update_freq == 0:
+                    self.model.update_target_network()
+

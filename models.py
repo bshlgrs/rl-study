@@ -86,6 +86,8 @@ class Model:
         self.frame_history_len = 4
         self.save_frequency = 250000
 
+        self.log_rate = 1000
+
         img_h, img_w, img_c = env.observation_space.shape
         self.input_shape = (img_h, img_w, self.frame_history_len * img_c)
 
@@ -168,16 +170,7 @@ class Model:
             self.session.run([action_choices_fn, best_action_values_fn], feed_dict={self.obs_t_ph: np.array([obs])})
         return BestAction(action_idx=action_choices[0], q_value=best_action_values[0])
 
-    def log(self, info, t):
-        if self.model_initialized:
-            for key, value in info.items():
-                self.session.run(self.summarized_scalars[key].assign(float(value)))
-
-            merged_summaries = self.merged_summaries
-            summary = self.session.run(merged_summaries)
-            self.train_writer.add_summary(summary, t)
-
-    def train(self, samples, t):
+    def train(self, samples, info, t):
         obs_t_batch, act_batch, rew_batch, obs_tp1_batch, done_mask = samples
 
         train_fn = self.train_fn
@@ -201,6 +194,14 @@ class Model:
 
         if t % self.save_frequency == 0:
             self.save(t)
+
+        if t % self.log_rate == 0:
+            for key, value in info.items():
+                self.session.run(self.summarized_scalars[key].assign(float(value)))
+
+            merged_summaries = self.merged_summaries
+            summary = self.session.run(merged_summaries)
+            self.train_writer.add_summary(summary, t)
 
     def update_target_network(self):
         self.session.run(self.update_target_fn)
