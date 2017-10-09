@@ -80,7 +80,8 @@ class DQNAgent:
         return PiecewiseSchedule(
             [
                 (0, 1.0),
-                (50000, 0.2),
+                (10000, 0.8),
+                (1e6, 0.1),
                 # should be num_iterations
                 (4e6 / 2, 0.01),
             ], outside_value=0.01
