@@ -148,8 +148,7 @@ class Model:
 
         variable_summaries(q_values_all_actions, 'q_values_all_actions')
 
-        scalar_summaries(['epsilon', ])
-
+        scalar_summaries(['epsilon', 'mean_episode_reward', 'num_episodes', 'learning_rate'])
 
         merged_summaries = tf.summary.merge_all()
 
