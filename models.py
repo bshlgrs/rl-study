@@ -91,9 +91,6 @@ class Model:
         self.learning_rate = tf.placeholder(tf.float32, (), name="learning_rate")
         self.train_writer = tf.summary.FileWriter('/tmp/train', self.session.graph)
 
-
-    @memoized
-    def build_model(self):
         num_actions = self.num_actions
         q_func = self.q_func
 
@@ -144,17 +141,15 @@ class Model:
         variable_summaries(q_values_all_actions, 'q_values_all_actions')
         merged_summaries = tf.summary.merge_all()
 
-        return {
-            'train_fn': train_fn,
-            'update_target_fn': update_target_fn,
-            'action_choices': action_choices,
-            'best_action_values': best_action_values,
-            'merged_summaries': merged_summaries
-        }
+        self.train_fn = train_fn
+        self.update_target_fn = update_target_fn
+        self.action_choices = action_choices
+        self.best_action_values = best_action_values
+        self.merged_summaries = merged_summaries
 
     def choose_best_action(self, obs):
-        action_choices_fn = self.build_model()['action_choices']
-        best_action_values_fn = self.build_model()['best_action_values']
+        action_choices_fn = self.action_choices
+        best_action_values_fn = self.best_action_values
 
         [action_choices, best_action_values] = \
             self.session.run([action_choices_fn, best_action_values_fn], feed_dict={self.obs_t_ph: np.array([obs])})
@@ -163,8 +158,8 @@ class Model:
     def train(self, samples, t):
         obs_t_batch, act_batch, rew_batch, obs_tp1_batch, done_mask = samples
 
-        train_fn = self.build_model()['train_fn']
-        merged_summaries = self.build_model()['merged_summaries']
+        train_fn = self.train_fn
+        merged_summaries = self.merged_summaries
 
         if not self.model_initialized:
             print('initializing model')
@@ -190,7 +185,7 @@ class Model:
 
     def update_target_network(self):
         print('updating target fn')
-        self.session.run(self.build_model()['update_target_fn'])
+        self.session.run(self.update_target_fn)
 
     def current_learning_rate(self, t):
         return self.get_optimizer_spec().lr_schedule.value(t)

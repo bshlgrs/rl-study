@@ -98,6 +98,4 @@ class DQNAgent:
             self.model.current_learning_rate(variables['t'])
         ))
 
-        self.model.train_writer.add_summary()
-
         sys.stdout.flush()
