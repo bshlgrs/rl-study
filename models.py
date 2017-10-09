@@ -96,7 +96,7 @@ class Model:
         self.done_mask_ph = tf.placeholder(tf.float32, [None], name='done_mask_ph')
         self.model_initialized = False
 
-        self.learning_rate = tf.placeholder(tf.float32, (), name="learning_rate")
+        self.learning_rate_ph = tf.placeholder(tf.float32, (), name="learning_rate")
 
         num_actions = self.num_actions
         q_func = self.q_func
@@ -133,7 +133,7 @@ class Model:
         total_error = tf.reduce_mean((y - q_values_for_actions_taken) ** 2, name='total_error')
 
         optimizer = self.get_optimizer_spec().constructor(
-            learning_rate=self.learning_rate,
+            learning_rate=self.learning_rate_ph,
             **self.get_optimizer_spec().kwargs)
         # construct optimization op (with gradient clipping)
         train_fn = minimize_and_clip(optimizer, total_error,
@@ -188,7 +188,7 @@ class Model:
             self.act_t_ph: act_batch,
             self.rew_t_ph: rew_batch,
             self.done_mask_ph: done_mask,
-            self.learning_rate: self.current_learning_rate(t)
+            self.learning_rate_ph: self.current_learning_rate(t)
         })
 
         self.train_writer.add_summary(summary, t)
