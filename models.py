@@ -24,7 +24,7 @@ def variable_summaries(var, var_name):
 
 def scalar_summary(var_name):
     with tf.variable_scope('scalar-summary'):
-        tf.summary.scalar(var_name, tf.get_variable(var_name, initializer=0))
+        tf.summary.scalar(var_name, tf.get_variable(var_name, initializer=0.))
 
 
 def scalar_summaries(names):
@@ -238,4 +238,4 @@ class Model:
         if self.model_initialized:
             with tf.variable_scope('scalar-summary', reuse=True):
                 for key, value in info.items():
-                    tf.get_variable(key).assign(value)
+                    tf.get_variable(key).assign(float(value))
