@@ -89,7 +89,6 @@ class Model:
         self.model_initialized = False
 
         self.learning_rate = tf.placeholder(tf.float32, (), name="learning_rate")
-        self.train_writer = tf.summary.FileWriter('/tmp/train', self.session.graph)
 
         num_actions = self.num_actions
         q_func = self.q_func
@@ -147,6 +146,8 @@ class Model:
         self.best_action_values = best_action_values
         self.merged_summaries = merged_summaries
 
+        self.train_writer = tf.summary.FileWriter('/tmp/train', self.session.graph)
+
     def choose_best_action(self, obs):
         action_choices_fn = self.action_choices
         best_action_values_fn = self.best_action_values
@@ -195,7 +196,7 @@ class Model:
         # This is just a rough estimate
         num_iterations = float(2e6)
 
-        lr_multiplier = self.batch_size / 32.0
+        lr_multiplier = 1 # self.batch_size / 32.0
         lr_schedule = PiecewiseSchedule([
             (0, 1e-4 * lr_multiplier),
             (num_iterations / 10, 1e-4 * lr_multiplier),
