@@ -234,5 +234,6 @@ class Model:
         print('saving done')
 
     def log_agent_info(self, info):
-        for key, value in info.items():
-            tf.get_variable(key).assign(value)
+        if self.model_initialized:
+            for key, value in info.items():
+                tf.get_variable(key).assign(value)
