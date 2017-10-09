@@ -238,4 +238,4 @@ class Model:
         if self.model_initialized:
             with tf.variable_scope('scalar-summary', reuse=True):
                 for key, value in info.items():
-                    tf.get_variable(key).assign(float(value))
+                    self.session.run(tf.get_variable(key).assign(float(value)))
