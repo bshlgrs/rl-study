@@ -96,7 +96,7 @@ class Model:
         self.done_mask_ph = tf.placeholder(tf.float32, [None], name='done_mask_ph')
         self.model_initialized = False
 
-        self.learning_rate_ph = tf.placeholder(tf.float32, (), name="learning_rate")
+        self.learning_rate_ph = tf.placeholder(tf.float32, (), name="learning_rate_ph")
 
         num_actions = self.num_actions
         q_func = self.q_func
