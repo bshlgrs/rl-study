@@ -23,13 +23,11 @@ def variable_summaries(var, var_name):
 
 
 def scalar_summary(var_name):
-    with tf.variable_scope('scalar-summary'):
-        tf.summary.scalar(var_name, tf.get_variable(var_name, initializer=0.))
+    return tf.summary.scalar(var_name, tf.get_variable(var_name, initializer=0.))
 
 
 def scalar_summaries(names):
-    for name in names:
-        scalar_summary(name)
+    return [scalar_summary(name) for name in names]
 
 
 def atari_model(img_in, num_actions, scope, reuse=False):
@@ -152,13 +150,11 @@ class Model:
 
         scalar_summaries(['epsilon', 'mean_episode_reward', 'num_episodes', 'learning_rate'])
 
-        merged_summaries = tf.summary.merge_all()
-
         self.train_fn = train_fn
         self.update_target_fn = update_target_fn
         self.action_choices = action_choices
         self.best_action_values = best_action_values
-        self.merged_summaries = merged_summaries
+        self.merged_summaries = tf.summary.merge_all()
 
         self.train_writer = tf.summary.FileWriter('/tmp/train', self.session.graph)
 
@@ -170,11 +166,19 @@ class Model:
             self.session.run([action_choices_fn, best_action_values_fn], feed_dict={self.obs_t_ph: np.array([obs])})
         return BestAction(action_idx=action_choices[0], q_value=best_action_values[0])
 
+    def log(self, info, t):
+        if self.model_initialized:
+            for key, value in info.items():
+                self.session.run(tf.get_variable(key).assign(float(value)))
+
+            merged_summaries = self.merged_summaries
+            summary = self.session.run(merged_summaries)
+            self.train_writer.add_summary(summary, t)
+
     def train(self, samples, t):
         obs_t_batch, act_batch, rew_batch, obs_tp1_batch, done_mask = samples
 
         train_fn = self.train_fn
-        merged_summaries = self.merged_summaries
 
         if not self.model_initialized:
             print('initializing model')
@@ -184,7 +188,7 @@ class Model:
             })
             self.model_initialized = True
 
-        _, summary = self.session.run([train_fn, merged_summaries], feed_dict={
+        self.session.run(train_fn, feed_dict={
             self.obs_t_ph: obs_t_batch,
             self.obs_tp1_ph: obs_tp1_batch,
             self.act_t_ph: act_batch,
@@ -193,13 +197,10 @@ class Model:
             self.learning_rate_ph: self.current_learning_rate(t)
         })
 
-        self.train_writer.add_summary(summary, t)
-
         if t % self.save_frequency == 0:
             self.save(t)
 
     def update_target_network(self):
-        print('updating target fn')
         self.session.run(self.update_target_fn)
 
     def current_learning_rate(self, t):
@@ -233,9 +234,3 @@ class Model:
         self.get_saver().save(self.session,
                               "/home/paperspace/models/model-started-at-%s-t-%d.ckpt" % (self.start_time, t))
         print('saving done')
-
-    def log_agent_info(self, info):
-        if self.model_initialized:
-            with tf.variable_scope('scalar-summary', reuse=True):
-                for key, value in info.items():
-                    self.session.run(tf.get_variable(key).assign(float(value)))

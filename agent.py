@@ -9,22 +9,12 @@ from dqn_utils import *
 import models
 
 
-# replay_buffer_size = 1000000,
-# batch_size = 128,
-# gamma = 0.99,
-# learning_starts = 50000,
-# learning_freq = 16,
-# target_update_freq = 10000,
-# grad_norm_clipping = 10):
-# frame_history_len = 4
-
 class DQNAgent:
     def __init__(self, env, session, batch_size=32):
         self.env = env
         self.replay_buffer_size = int(1e6)
         self.gamma = 0.99
         self.learning_starts = 50000
-
         self.exploration = LinearSchedule(1000000, 0.1)
         self.stopping_criterion = None
         self.model = models.Model(session, env, batch_size=batch_size)
@@ -39,7 +29,6 @@ class DQNAgent:
         replay_buffer = ReplayBuffer(self.replay_buffer_size, self.model.frame_history_len)
 
         mean_episode_reward = -float('nan')
-
 
         last_obs = self.env.reset()
         done = False
@@ -70,30 +59,13 @@ class DQNAgent:
             episode_rewards = get_wrapper_by_name(self.env, "Monitor").get_episode_rewards()
             if len(episode_rewards) > 0:
                 mean_episode_reward = np.mean(episode_rewards[-100:])
+
             if t % self.log_rate == 0:
-                self.report(locals())
+                info = {
+                    'epsilon': self.exploration.value(t),
+                    'mean_episode_reward': mean_episode_reward,
+                    'num_episodes': len(episode_rewards),
+                    'learning_rate': self.model.current_learning_rate(t)
+                }
 
-        self.report(locals())
-
-    @memoized
-    def exploration_schedule(self):
-        return PiecewiseSchedule(
-            [
-                (0, 1.0),
-                (10000, 0.8),
-                (1e6, 0.1),
-                # should be num_iterations
-                (4e6 / 2, 0.01),
-            ], outside_value=0.01
-        )
-
-    def report(self, variables):
-        t = variables['t']
-
-        self.model.log_agent_info({
-            'epsilon': self.exploration.value(t),
-            'mean_episode_reward': variables['mean_episode_reward'],
-            'num_episodes': len(variables['episode_rewards']),
-            'learning_rate': self.model.current_learning_rate(variables['t'])
-        })
-        sys.stdout.flush()
+                self.model.log(info, t)
