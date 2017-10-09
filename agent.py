@@ -94,5 +94,5 @@ class DQNAgent:
             'mean_episode_reward': variables['mean_episode_reward'],
             'num_episodes': len(variables['episode_rewards']),
             'learning_rate': self.model.current_learning_rate(variables['t'])
-        }, t)
+        })
         sys.stdout.flush()

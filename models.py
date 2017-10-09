@@ -233,7 +233,6 @@ class Model:
                               "/home/paperspace/models/model-started-at-%s-t-%d.ckpt" % (self.start_time, t))
         print('saving done')
 
-    def log_agent_info(self, info, t):
-        self.epsilon.assign(info['epsilon'])
-        self.epsilon.assign(info['epsilon'])
-        pass
+    def log_agent_info(self, info):
+        for key, value in info:
+            tf.get_variable(key).assign(value)
