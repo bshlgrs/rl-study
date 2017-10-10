@@ -32,15 +32,19 @@ def scalar_summaries(names):
         scalar_summary(name)
 
 
+def atari_convnet(img_in, scope, reuse=False):
+    with tf.variable_scope(scope, reuse=reuse):
+        with tf.variable_scope("convnet", reuse=reuse):
+            conv1 = layers.convolution2d(img_in, num_outputs=32, kernel_size=8, stride=4, activation_fn=tf.nn.relu)
+            conv2 = layers.convolution2d(conv1, num_outputs=64, kernel_size=4, stride=2, activation_fn=tf.nn.relu)
+            conv3 = layers.convolution2d(conv2, num_outputs=64, kernel_size=3, stride=1, activation_fn=tf.nn.relu)
+    return layers.flatten(conv3)
+
+
 def atari_model(img_in, num_actions, scope, reuse=False):
     # as described in https://storage.googleapis.com/deepmind-data/assets/papers/DeepMindNature14236Paper.pdf
     with tf.variable_scope(scope, reuse=reuse):
-        out = img_in
-        with tf.variable_scope("convnet"):
-            out = layers.convolution2d(out, num_outputs=32, kernel_size=8, stride=4, activation_fn=tf.nn.relu)
-            out = layers.convolution2d(out, num_outputs=64, kernel_size=4, stride=2, activation_fn=tf.nn.relu)
-            out = layers.convolution2d(out, num_outputs=64, kernel_size=3, stride=1, activation_fn=tf.nn.relu)
-        out = layers.flatten(out)
+        out = atari_convnet(img_in, scope, reuse)
 
         with tf.variable_scope("action_value"):
             out = layers.fully_connected(out, num_outputs=512,         activation_fn=tf.nn.relu)
@@ -72,10 +76,10 @@ def duelling_atari_model(img_in, num_actions, scope, reuse=False):
 
 
 class Model:
-    def __init__(self, session, env, q_func=atari_model, double=True, batch_size=512):
+    def __init__(self, session, env, double=True, batch_size=512, q_func=None):
         self.session = session
 
-        self.q_func = q_func
+        self.q_func = q_func or atari_model
         self.env = env
         self.double = double
         self.gamma = 0.99

@@ -1,10 +1,6 @@
 import sys
-from datetime import datetime
 
 import gym.spaces
-import itertools
-import numpy as np
-import random
 from dqn_utils import *
 import models
 
@@ -19,7 +15,7 @@ import models
 # frame_history_len = 4
 
 class DQNAgent:
-    def __init__(self, env, session, batch_size=32):
+    def __init__(self, env, session, batch_size=32, q_func=None):
         self.env = env
         self.replay_buffer_size = int(1e6)
         self.gamma = 0.99
@@ -27,7 +23,7 @@ class DQNAgent:
 
         self.exploration = LinearSchedule(1000000, 0.1)
         self.stopping_criterion = None
-        self.model = models.Model(session, env, batch_size=batch_size)
+        self.model = models.Model(session, env, batch_size=batch_size, q_func=q_func)
         self.target_update_freq = 10000
         self.log_rate = 10000
         self.learning_freq = 4 * batch_size / 32
@@ -39,7 +35,6 @@ class DQNAgent:
         replay_buffer = ReplayBuffer(self.replay_buffer_size, self.model.frame_history_len)
 
         mean_episode_reward = -float('nan')
-
 
         last_obs = self.env.reset()
         done = False
