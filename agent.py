@@ -21,7 +21,7 @@ class DQNAgent:
         self.gamma = 0.99
         self.learning_starts = 50000
 
-        self.exploration = LinearSchedule(5000000, 0.1)
+        self.exploration = LinearSchedule(1000000, 0.1)
         self.stopping_criterion = None
         self.model = models.Model(session, env, batch_size=batch_size, q_func=q_func)
         self.target_update_freq = 10000
