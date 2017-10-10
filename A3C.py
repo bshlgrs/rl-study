@@ -1,9 +1,14 @@
+import models
 from dqn_utils import *
-
+import gym.spaces
 
 class A3CModel(object):
-    def __init__(self):
-        pass
+    def __init__(self, conv_function=None):
+        self.frame_history_len = 3
+
+        self.conv_function = conv_function or models.atari_convnet
+
+        self.obs_ph =
 
     def sync_params(self):
         pass
@@ -16,12 +21,13 @@ class A3CModel(object):
 
 
 class A3CAgent:
-    def __init__(self, env, session, max_episode_timesteps=100000, gamma=0.99):
+    def __init__(self, env, session, max_episode_timesteps=100000, gamma=0.99, conv_function=None):
         self.env = env
         self.session = session
         self.max_episode_timesteps = max_episode_timesteps
-        self.model = A3CModel()
+        self.model = A3CModel(conv_function=conv_function)
         self.gamma = 0.99
+
 
         assert type(self.env.observation_space) == gym.spaces.Box
         assert type(self.env.action_space) == gym.spaces.Discrete
