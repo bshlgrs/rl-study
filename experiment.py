@@ -6,11 +6,11 @@ def main():
     print("your git commit is ")
     os.system("git rev-parse HEAD")
 
-    env = get_env(3)
+    env = get_env(1)
     session = get_session()
     agent = DQNAgent(env, session, batch_size=512)
 
-    agent.learn(500001)
+    agent.learn(5000001)
     env.close()
 
 
