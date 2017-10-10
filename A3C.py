@@ -2,13 +2,35 @@ import models
 from dqn_utils import *
 import gym.spaces
 
+
 class A3CModel(object):
-    def __init__(self, conv_function=None):
+    def __init__(self, session, env, conv_function=None):
+        self.session = session
+        self.env = env
+        self.num_actions = env.action_space.n
+
         self.frame_history_len = 3
 
         self.conv_function = conv_function or models.atari_convnet
 
-        self.obs_ph =
+        self.obs_t_ph = tf.placeholder(tf.uint8, [None] + list(self.input_shape), name='obs_t_ph')
+        self.act_t_ph = tf.placeholder(tf.int32, [None], name='act_t_ph')
+        self.rew_t_ph = tf.placeholder(tf.float32, [None], name='rew_t_ph')
+        self.obs_tp1_ph = tf.placeholder(tf.uint8, [None] + list(self.input_shape), name='obs_tp1_ph')
+        self.done_mask_ph = tf.placeholder(tf.float32, [None], name='done_mask_ph')
+        self.model_initialized = False
+
+        self.learning_rate_ph = tf.placeholder(tf.float32, (), name="learning_rate_ph")
+
+        num_actions = self.num_actions
+        q_func = self.q_func
+
+        # casting to float on GPU ensures lower data transfer times. TODO: understand this better
+        obs_t_float = tf.cast(self.obs_t_ph, tf.float32) / 255.0
+        obs_tp1_float = tf.cast(self.obs_tp1_ph, tf.float32) / 255.0
+
+
+
 
     def sync_params(self):
         pass

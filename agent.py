@@ -63,32 +63,23 @@ class DQNAgent:
                     self.model.update_target_network()
 
             episode_rewards = get_wrapper_by_name(self.env, "Monitor").get_episode_rewards()
-            if len(episode_rewards) > 0:
-                mean_episode_reward = np.mean(episode_rewards[-100:])
+
             if t % self.log_rate == 0:
+                if len(episode_rewards) > 0:
+                    mean_episode_reward = np.mean(episode_rewards[-100:])
                 self.report(locals())
 
         self.report(locals())
 
-    @memoized
-    def exploration_schedule(self):
-        return PiecewiseSchedule(
-            [
-                (0, 1.0),
-                (10000, 0.8),
-                (1e6, 0.5),
-                # should be num_iterations
-                (4e6, 0.01),
-            ], outside_value=0.01
-        )
-
     def report(self, variables):
         t = variables['t']
 
-        self.model.log_agent_info({
+        info = {
             'epsilon': self.exploration.value(t),
             'mean_episode_reward': variables['mean_episode_reward'],
             'num_episodes': len(variables['episode_rewards']),
             'learning_rate': self.model.current_learning_rate(variables['t'])
-        })
+        }
+        print(t, info)
+        self.model.log_agent_info(info)
         sys.stdout.flush()
