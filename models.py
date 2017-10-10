@@ -47,7 +47,7 @@ def atari_model(img_in, num_actions, scope, reuse=False):
         out = atari_convnet(img_in, scope, reuse)
 
         with tf.variable_scope("action_value"):
-            out = layers.fully_connected(out, num_outputs=512,         activation_fn=tf.nn.relu)
+            out = layers.fully_connected(out, num_outputs=512, activation_fn=tf.nn.relu)
             out = layers.fully_connected(out, num_outputs=num_actions, activation_fn=None)
 
         return out
@@ -55,22 +55,22 @@ def atari_model(img_in, num_actions, scope, reuse=False):
 
 def duelling_atari_model(img_in, num_actions, scope, reuse=False):
     with tf.variable_scope(scope, reuse=reuse):
-        with tf.variable_scope('convnet'):
-            conv_layer_1 = layers.convolution2d(img_in, num_outputs=32, kernel_size=8, stride=4, activation_fn=tf.nn.relu)
-            conv_layer_2 = layers.convolution2d(conv_layer_1, num_outputs=64, kernel_size=4, stride=2, activation_fn=tf.nn.relu)
-            conv_layer_3 = layers.convolution2d(conv_layer_2, num_outputs=64, kernel_size=3, stride=1, activation_fn=tf.nn.relu)
-
-        conv_flattened = layers.flatten(conv_layer_3)
+        conv_flattened = atari_convnet(img_in, scope, reuse)
 
         with tf.variable_scope('value'):
             value_fc1 = layers.fully_connected(conv_flattened, num_outputs=512, activation_fn=tf.nn.relu)
             value_out = tf.reduce_sum(layers.fully_connected(value_fc1, num_outputs=1, activation_fn=tf.nn.relu), axis=1)
+
+        variable_summaries(value_out, 'value_out')
 
         with tf.variable_scope('advantage'):
             advantage_fc1 = layers.fully_connected(conv_flattened, num_outputs=512, activation_fn=tf.nn.relu)
             advantage_out = layers.fully_connected(advantage_fc1, num_outputs=num_actions, activation_fn=None)
 
         correction = tf.reduce_mean(advantage_out, axis=1)
+
+        variable_summaries(advantage_out, 'advantage_out')
+        variable_summaries(correction, 'correction')
 
     return advantage_out + tf.tile(tf.expand_dims(value_out - correction, 1), [1, num_actions])
 
