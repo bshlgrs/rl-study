@@ -57,6 +57,7 @@ class A2cEnvironmentWrapper:
             self.queue.append(self.zero_state)
 
         self.queue.append(self.env.reset())
+        print('Episode reward at total timestep %d is %f'%(self.model.total_t, self.episode_reward))
         self.episode_reward = 0
         self.done = False
 
@@ -153,7 +154,7 @@ class A2cModel(object):
                 value_fc1 = layers.fully_connected(conv_layer, num_outputs=16, activation_fn=tf.nn.relu)
                 value_out = tf.reduce_sum(layers.fully_connected(value_fc1, num_outputs=1, activation_fn=None), axis=1)
 
-                variable_summaries(value_out, 'value_out')
+                variable_summaries(value_out, 'value')
 
         neg_log_p_ac = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=policy_out, labels=act_t_ph)
         advantage = rew_t_ph - value_out
@@ -270,6 +271,7 @@ class A2cConductor:
     def enjoy(self, model):
         # type: (self, A2cModel) -> None
         self.config.exploration_schedule = LinearSchedule(1, 0)
-        env_wrapper = A2cEnvironmentWrapper(0, self.env_factory,  A2cAgent(self.config, model), self.config, model, render=True)
+        env_wrapper = A2cEnvironmentWrapper(0, self.env_factory,  A2cAgent(self.config, model), self.config, model,
+                                            render=True)
         while not env_wrapper.done:
             env_wrapper.step()
