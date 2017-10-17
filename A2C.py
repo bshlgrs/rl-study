@@ -210,7 +210,7 @@ class A2cModel(object):
 
 class A2cConfig:
     def __init__(self, env, session):
-        self.exploration_schedule = LinearSchedule(250000, 0.2)
+        self.exploration_schedule = LinearSchedule(2500000, 0.0)
         self.session = session
         self.env = env
         self.num_actions = env.action_space.n
@@ -230,7 +230,7 @@ class A2cConfig:
 
         self.steps_per_epoch = int(self.minibatch_size / self.num_actors)
 
-        self.num_steps = 250000
+        self.num_steps = 2500000
 
 
 class A2cConductor:
