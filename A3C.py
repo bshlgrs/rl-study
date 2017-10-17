@@ -304,5 +304,5 @@ class A3cOptimizer(threading.Thread):
         while not self.stop_signal:
             time.sleep(0)
             print('optimizer!')
-            self.model.optimize()
+            self.model.train()
 

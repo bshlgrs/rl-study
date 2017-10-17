@@ -23,8 +23,7 @@ def variable_summaries(var, var_name):
 
 
 def scalar_summary(var_name):
-    with tf.variable_scope('scalar-summary'):
-        tf.summary.scalar(var_name, tf.get_variable(var_name, initializer=0.))
+    tf.summary.scalar(var_name, tf.get_variable(var_name, initializer=0.))
 
 
 def scalar_summaries(names):
@@ -74,6 +73,7 @@ def dueling_atari_model(img_in, num_actions, scope, reuse=False):
     # print('q func shape:', q_func.get_shape())
     return q_func
 
+
 def dueling_atari_model_2(img_in, num_actions, scope, reuse=False):
     with tf.variable_scope(scope, reuse=reuse):
         conv_out = atari_convnet(img_in, scope, reuse)
@@ -95,6 +95,7 @@ def dueling_atari_model_2(img_in, num_actions, scope, reuse=False):
     # print('normalized_advantage shape:', normalized_advantage.get_shape())
     # print('q func shape:', q_func.get_shape())
     return q_func
+
 
 class Model:
     def __init__(self, session, env, double=True, batch_size=512, q_func=None):

@@ -41,7 +41,7 @@ def get_session():
     return session
 
 
-def get_env(task_idx):
+def get_env(task_idx, monitor=True):
     # Get Atari games.
     benchmark = gym.benchmark_spec('Atari40M')
 
@@ -56,7 +56,8 @@ def get_env(task_idx):
     env.seed(0)
 
     expt_dir = '/tmp/hw3_vid_dir2/'
-    env = wrappers.Monitor(env, osp.join(expt_dir, "gym"), force=True)
+    if monitor:
+        env = wrappers.Monitor(env, osp.join(expt_dir, "gym"), force=True)
     env = wrap_deepmind(env)
 
     return env

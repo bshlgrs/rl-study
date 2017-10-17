@@ -402,20 +402,6 @@ class memoized(object):
         return functools.partial(self.__call__, obj)
 
 
-class MeanLogger:
-    def __init__(self):
-        self.sum = 0
-        self.count = 0
-
-    def log(self, val):
-        self.sum += val
-        self.count += 1
-
-    def pop(self):
-        if self.count:
-            res = self.sum/self.count
-        else:
-            res = float('nan')
-        self.sum = 0
-        self.count = 0
-        return res
+def find_trainable_variables(key):
+    with tf.variable_scope(key):
+        return tf.trainable_variables()
