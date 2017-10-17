@@ -74,6 +74,27 @@ def dueling_atari_model(img_in, num_actions, scope, reuse=False):
     # print('q func shape:', q_func.get_shape())
     return q_func
 
+def dueling_atari_model_2(img_in, num_actions, scope, reuse=False):
+    with tf.variable_scope(scope, reuse=reuse):
+        conv_out = atari_convnet(img_in, scope, reuse)
+        fc_1 = layers.fully_connected(conv_out, num_outputs=512, activation_fn=tf.nn.relu)
+
+        with tf.variable_scope('unnormalized_advantage'):
+            advantage_fc2 = layers.fully_connected(fc_1, num_outputs=32, activation_fn=tf.nn.relu)
+            unnormalized_advantage = layers.fully_connected(advantage_fc2, num_outputs=num_actions, activation_fn=None)
+
+        with tf.variable_scope('value_function'):
+            value_fc1 = layers.fully_connected(fc_1, num_outputs=32, activation_fn=tf.nn.relu)
+            value = layers.fully_connected(value_fc1, num_outputs=1, activation_fn=None)
+
+        normalized_advantage = unnormalized_advantage - tf.expand_dims(
+            tf.reduce_mean(unnormalized_advantage, axis=1), axis=1)
+
+        q_func = value + normalized_advantage
+
+    # print('normalized_advantage shape:', normalized_advantage.get_shape())
+    # print('q func shape:', q_func.get_shape())
+    return q_func
 
 class Model:
     def __init__(self, session, env, double=True, batch_size=512, q_func=None):
