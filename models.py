@@ -53,26 +53,24 @@ def atari_model(img_in, num_actions, scope, reuse=False):
         return out
 
 
-def duelling_atari_model(img_in, num_actions, scope, reuse=False):
+def dueling_atari_model(img_in, num_actions, scope, reuse=False):
     with tf.variable_scope(scope, reuse=reuse):
-        conv_flattened = atari_convnet(img_in, scope, reuse)
+        conv_out = atari_convnet(img_in, scope, reuse)
 
-        with tf.variable_scope('value'):
-            value_fc1 = layers.fully_connected(conv_flattened, num_outputs=512, activation_fn=tf.nn.relu)
-            value_out = layers.fully_connected(value_fc1, num_outputs=1, activation_fn=None)
+        with tf.variable_scope('unnormalized_advantage'):
+            advantage_fc1 = layers.fully_connected(conv_out, num_outputs=512, activation_fn=tf.nn.relu)
+            unnormalized_advantage = layers.fully_connected(advantage_fc1, num_outputs=num_actions, activation_fn=None)
 
-        variable_summaries(value_out, 'value_out')
+        with tf.variable_scope('value_function'):
+            value_fc1 = layers.fully_connected(conv_out, num_outputs=512, activation_fn=tf.nn.relu)
+            value = layers.fully_connected(value_fc1, num_outputs=1, activation_fn=None)
 
-        with tf.variable_scope('advantage'):
-            advantage_fc1 = layers.fully_connected(conv_flattened, num_outputs=512, activation_fn=tf.nn.relu)
-            advantage_out = layers.fully_connected(advantage_fc1, num_outputs=num_actions, activation_fn=None)
+        normalized_advantage = unnormalized_advantage - tf.expand_dims(
+            tf.reduce_mean(unnormalized_advantage, axis=1), axis=1)
 
-        advantage_mean = tf.reduce_mean(advantage_out, axis=1)
-        advantage_centered = advantage_out - tf.expand_dims(advantage_mean, 1)
+        q_func = tf.expand_dims(value, axis=1) + normalized_advantage
 
-        variable_summaries(advantage_centered, 'advantage_centered')
-
-    return advantage_centered + value_out
+    return q_func
 
 
 class Model:

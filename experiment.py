@@ -8,9 +8,9 @@ def main():
     os.system("git rev-parse HEAD")
 
     # options are: Beam Rider, Breakout, Enduro, Pong, Qbert, Seaquest, Space Invaders
-    env = get_env(0)
+    env = get_env(3)
     session = get_session()
-    agent = DQNAgent(env, session, batch_size=512, q_func=models.atari_model)
+    agent = DQNAgent(env, session, batch_size=512, q_func=models.dueling_atari_model)
 
     agent.learn(2000001)
     env.close()
