@@ -8,24 +8,6 @@ OptimizerSpec = namedtuple("OptimizerSpec", ["constructor", "kwargs", "lr_schedu
 BestAction = namedtuple('BestAction', ['action_idx', 'q_value'])
 
 
-def variable_summaries(var, var_name):
-    """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
-
-    with tf.name_scope(var_name+"-summary"):
-        mean = tf.reduce_mean(var)
-        tf.summary.scalar('mean', mean)
-        with tf.name_scope('stddev'):
-            stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
-        tf.summary.scalar('stddev', stddev)
-        tf.summary.scalar('max', tf.reduce_max(var))
-        tf.summary.scalar('min', tf.reduce_min(var))
-        tf.summary.histogram('histogram', var)
-
-
-def scalar_summary(var_name):
-    tf.summary.scalar(var_name, tf.get_variable(var_name, initializer=0.))
-
-
 def scalar_summaries(names):
     for name in names:
         scalar_summary(name)

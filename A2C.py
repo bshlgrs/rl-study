@@ -147,19 +147,27 @@ class A2cModel(object):
                 policy_fc2 = layers.fully_connected(policy_fc1, num_outputs=num_actions, activation_fn=None)
                 policy_out = tf.nn.softmax(policy_fc2)
 
+                variable_summaries(policy_out, 'policy_out')
+
             with tf.variable_scope('value'):
                 value_fc1 = layers.fully_connected(conv_layer, num_outputs=16, activation_fn=tf.nn.relu)
                 value_out = tf.reduce_sum(layers.fully_connected(value_fc1, num_outputs=1, activation_fn=None), axis=1)
 
+                variable_summaries(value_out, 'value_out')
+
         neg_log_p_ac = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=policy_out, labels=act_t_ph)
         advantage = rew_t_ph - value_out
-
+        variable_summaries(advantage, 'advantage')
         loss_policy = neg_log_p_ac * tf.stop_gradient(advantage)
         loss_value = config.value_loss_constant * tf.square(advantage)
 
         entropy = config.regularization_constant * tf.reduce_sum(tf.log(policy_out + 1e-10) * policy_out, axis=1,
-                                                                 keep_dims=True)
-        loss_total = tf.reduce_sum(loss_policy + loss_value - entropy)
+                                                                 keep_dims=True, name="entropy")
+        scalar_summary('entropy')
+        loss_total = tf.reduce_sum(loss_policy + loss_value - entropy, name="total_loss")
+        scalar_summary('total_loss')
+
+        self.merged_summaries = tf.summary.merge_all()
 
         params = find_trainable_variables('model')
         clipped_grads, _ = tf.clip_by_global_norm(tf.gradients(loss_total, params), 0.5)
@@ -172,6 +180,7 @@ class A2cModel(object):
         self.tensors_for_train = (obs_t_ph, act_t_ph, rew_t_ph, learning_rate_ph, _train, neg_log_p_ac)
         self.tensors_for_get_value = (obs_t_ph, value_out)
         self.session.run(tf.global_variables_initializer())
+        self.train_writer = tf.summary.FileWriter('/tmp/train', self.session.graph)
 
     def get_policy(self, observation):
         (obs_t_ph, policy_out) = self.tensors_for_get_policy
@@ -185,12 +194,13 @@ class A2cModel(object):
         r = np.stack(r)
 
         (obs_t_ph, act_t_ph, rew_t_ph, learning_rate_ph, _train, neg_log_p_ac) = self.tensors_for_train
+        merged_summaries = self.merged_summaries
 
-        probs, _ = self.session.run([neg_log_p_ac, _train], feed_dict={obs_t_ph: s,
-                                                                       act_t_ph: a,
-                                                                       rew_t_ph: r,
-                                                                       learning_rate_ph: 0.05})
-
+        summary, _ = self.session.run([merged_summaries, _train], feed_dict={obs_t_ph: s,
+                                                                           act_t_ph: a,
+                                                                           rew_t_ph: r,
+                                                                           learning_rate_ph: 0.05})
+        self.train_writer.add_summary(summary, t)
         self.total_t += self.config.minibatch_size
 
     def predict_values(self, obs):
@@ -242,8 +252,6 @@ class A2cConductor:
             s = []
             a = []
             r = []
-            s_ = []
-            done = []
 
             for env in envs:
                 env.run_batch(self.config.steps_per_epoch)
