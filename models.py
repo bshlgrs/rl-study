@@ -68,8 +68,10 @@ def dueling_atari_model(img_in, num_actions, scope, reuse=False):
         normalized_advantage = unnormalized_advantage - tf.expand_dims(
             tf.reduce_mean(unnormalized_advantage, axis=1), axis=1)
 
-        q_func = tf.expand_dims(value, axis=1) + normalized_advantage
+        q_func = value + normalized_advantage
 
+    # print('normalized_advantage shape:', normalized_advantage.get_shape())
+    # print('q func shape:', q_func.get_shape())
     return q_func
 
 
