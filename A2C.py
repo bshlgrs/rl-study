@@ -200,7 +200,7 @@ class A2cModel(object):
                                                                            act_t_ph: a,
                                                                            rew_t_ph: r,
                                                                            learning_rate_ph: 0.05})
-        self.train_writer.add_summary(summary, t)
+        self.train_writer.add_summary(summary, self.total_t)
         self.total_t += self.config.minibatch_size
 
     def predict_values(self, obs):
