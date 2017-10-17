@@ -26,7 +26,7 @@ class A2cEnvironmentWrapper:
     def __init__(self, n, env_factory, agent, config, model, render=False):
         super().__init__()
         self.n = n
-        self.env = env_factory()
+        self.env = env_factory(n == 0)
         self.stop_signal = False
         self.agent = agent
         self.config = config
@@ -162,8 +162,7 @@ class A2cModel(object):
         loss_policy = neg_log_p_ac * tf.stop_gradient(advantage)
         loss_value = config.value_loss_constant * tf.square(advantage)
 
-        entropy = config.regularization_constant * tf.reduce_sum(tf.log(policy_out + 1e-10) * policy_out, axis=1,
-                                                                 keep_dims=True, name="entropy")
+        entropy = config.regularization_constant * tf.reduce_sum(tf.log(policy_out + 1e-10) * policy_out, name="entropy")
         scalar_summary('entropy')
         loss_total = tf.reduce_sum(loss_policy + loss_value - entropy, name="total_loss")
         scalar_summary('total_loss')
