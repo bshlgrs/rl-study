@@ -1,25 +1,17 @@
-import time
-from collections import namedtuple
+import random
+from collections import namedtuple, deque
 
 from tensorflow.contrib import layers
+import tensorflow as tf
 
-import models
-from dqn_utils import *
+import dqn_utils
+import numpy as np
+from models import atari_convnet
 
 
 THREAD_DELAY = 0.001
 
 MemoryItem = namedtuple("MemoryItem", ["s", "a", "r", "s_", "done"])
-
-
-def assert_shape(arr, shape):
-    assert len(arr.shape) == len(shape), "Shapes should be equal: %s, %s"%(str(arr.shape), str(shape))
-    for (arr_el, shape_el) in zip(arr.shape, shape):
-        if shape_el is not None:
-            if arr_el != shape_el:
-                raise RuntimeError("Oh dear! Your array has shape %s, supposed to be %s"%(str(arr.shape), str(shape)))
-
-    return arr
 
 
 class A2cEnvironmentWrapper:
@@ -28,10 +20,10 @@ class A2cEnvironmentWrapper:
         self.n = n
         self.env = env_factory(n == 0)
         self.stop_signal = False
-        self.agent = agent
-        self.config = config
-        self.queue = collections.deque(maxlen=config.frame_history_len + 1)
-        self.model = model
+        self.agent = agent  # type: A2cAgent
+        self.config = config  # type: A2cConfig
+        self.queue = deque(maxlen=config.frame_history_len + 1)
+        self.model = model  # type: A2cModel
         self.episode_reward = 0
         self.zero_state = np.zeros(self.config.state_shape)
         self.render = render
@@ -57,7 +49,9 @@ class A2cEnvironmentWrapper:
             self.queue.append(self.zero_state)
 
         self.queue.append(self.env.reset())
-        print('Episode reward at total timestep %d is %f'%(self.model.total_t, self.episode_reward))
+        self.model.episodes_log.append(self.episode_reward)
+        # if random.random() < 0.01:
+        #     print('Episode reward at total timestep %d is %f' % (self.model.total_t, self.episode_reward))
         self.episode_reward = 0
         self.done = False
 
@@ -125,12 +119,19 @@ class A2cModel(object):
         self.conv_function = self.config.conv_function
         self.session = self.config.session
 
+        self.episodes_log = []
+
         self.total_t = 0
 
         obs_t_ph = tf.placeholder(tf.uint8, [None] + list(config.input_shape), name='obs_t_ph')
         act_t_ph = tf.placeholder(tf.int32, [None], name='act_t_ph')
         rew_t_ph = tf.placeholder(tf.float32, [None], name='rew_t_ph')
         self.model_initialized = False
+
+        action_probabilities = tf.reduce_mean(tf.one_hot(act_t_ph, config.num_actions), axis=0)
+
+        for i in range(config.num_actions):
+            tf.summary.scalar('action_%d_prob'%i, action_probabilities[i])
 
         learning_rate_ph = tf.placeholder(tf.float32, (), name="learning_rate_ph")
 
@@ -148,29 +149,36 @@ class A2cModel(object):
                 policy_fc2 = layers.fully_connected(policy_fc1, num_outputs=num_actions, activation_fn=None)
                 policy_out = tf.nn.softmax(policy_fc2)
 
-                variable_summaries(policy_out, 'policy_out')
+                # variable_summaries(policy_out, 'policy_out')
 
             with tf.variable_scope('value'):
                 value_fc1 = layers.fully_connected(conv_layer, num_outputs=16, activation_fn=tf.nn.relu)
                 value_out = tf.reduce_sum(layers.fully_connected(value_fc1, num_outputs=1, activation_fn=None), axis=1)
 
-                variable_summaries(value_out, 'value')
+                dqn_utils.variable_summaries(value_out, 'value')
 
         neg_log_p_ac = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=policy_out, labels=act_t_ph)
         advantage = rew_t_ph - value_out
-        variable_summaries(advantage, 'advantage')
-        loss_policy = neg_log_p_ac * tf.stop_gradient(advantage)
-        loss_value = config.value_loss_constant * tf.square(advantage)
+        dqn_utils.variable_summaries(advantage, 'advantage')
 
-        entropy = config.regularization_constant * tf.reduce_sum(tf.log(policy_out + 1e-10) * policy_out, name="entropy")
-        scalar_summary('entropy')
-        loss_total = tf.reduce_sum(loss_policy + loss_value - entropy, name="total_loss")
-        scalar_summary('total_loss')
+        policy_loss = tf.reduce_mean(neg_log_p_ac * tf.stop_gradient(advantage))
+        tf.summary.scalar('policy_loss', policy_loss)
+        value_loss = tf.reduce_mean(tf.square(tf.squeeze(value_out) - rew_t_ph)) # previously this was advantage
+        tf.summary.scalar('value_loss', value_loss)
+        tf.summary.scalar('value_bias', tf.reduce_mean(tf.squeeze(value_out) - rew_t_ph))
+        tf.summary.scalar('value_prediction_and_true_value_covariance', dqn_utils.covariance(value_out, rew_t_ph))
+
+        entropy = tf.reduce_mean(-tf.log(policy_out + 1e-10) * policy_out) * num_actions
+        tf.summary.scalar('entropy', entropy)
+        total_loss = tf.reduce_sum(policy_loss +
+                                   config.value_loss_constant * value_loss -
+                                   config.regularization_constant * entropy, name="total_loss")
+        tf.summary.scalar('total_loss', total_loss)
 
         self.merged_summaries = tf.summary.merge_all()
 
-        params = find_trainable_variables('model')
-        clipped_grads, _ = tf.clip_by_global_norm(tf.gradients(loss_total, params), 0.5)
+        params = dqn_utils.find_trainable_variables('model')
+        clipped_grads, _ = tf.clip_by_global_norm(tf.gradients(total_loss, params), 0.5)
         grads = list(zip(clipped_grads, params))
 
         optimizer = tf.train.RMSPropOptimizer(learning_rate_ph, decay=.99, epsilon=1e-5)
@@ -184,8 +192,8 @@ class A2cModel(object):
 
     def get_policy(self, observation):
         (obs_t_ph, policy_out) = self.tensors_for_get_policy
-
         policy = self.session.run(policy_out, feed_dict={obs_t_ph: np.array([observation])})[0]
+
         return policy
 
     def train(self, s, a, r):
@@ -197,9 +205,9 @@ class A2cModel(object):
         merged_summaries = self.merged_summaries
 
         summary, _ = self.session.run([merged_summaries, _train], feed_dict={obs_t_ph: s,
-                                                                           act_t_ph: a,
-                                                                           rew_t_ph: r,
-                                                                           learning_rate_ph: 0.05})
+                                                                             act_t_ph: a,
+                                                                             rew_t_ph: r,
+                                                                             learning_rate_ph: 0.05})
         self.train_writer.add_summary(summary, self.total_t)
         self.total_t += self.config.minibatch_size
 
@@ -210,7 +218,7 @@ class A2cModel(object):
 
 class A2cConfig:
     def __init__(self, env, session):
-        self.exploration_schedule = LinearSchedule(2500000, 0.0)
+        self.exploration_schedule = dqn_utils.LinearSchedule(2500000, 0.1)
         self.session = session
         self.env = env
         self.num_actions = env.action_space.n
@@ -223,10 +231,10 @@ class A2cConfig:
         self.gamma = 0.99
         self.value_loss_constant = 0.5
         self.regularization_constant = 0.01
-        self.conv_function = models.atari_convnet
+        self.conv_function = atari_convnet
 
         self.num_actors = 16
-        self.minibatch_size = 512
+        self.minibatch_size = 80
 
         self.steps_per_epoch = int(self.minibatch_size / self.num_actors)
 
@@ -248,7 +256,6 @@ class A2cConductor:
                 for i in range(self.config.num_actors)]
 
         for i in range(int(self.config.num_steps / self.config.minibatch_size)):
-            # print(i * self.config.minibatch_size)
             s = []
             a = []
             r = []
@@ -260,8 +267,11 @@ class A2cConductor:
                 a.extend(new_a)
                 r.extend(new_r)
 
-            if i % 10 == 0:
-                print(i * self.config.minibatch_size, sum(r))
+            if i % 10 == 0 and model.episodes_log:
+                episodes = model.episodes_log
+                model.episodes_log = []
+
+                print(i * self.config.minibatch_size, sum(episodes) / len(episodes))
             model.train(s, a, r)
 
         print("done!")
@@ -269,7 +279,7 @@ class A2cConductor:
 
     def enjoy(self, model):
         # type: (self, A2cModel) -> None
-        self.config.exploration_schedule = LinearSchedule(1, 0)
+        self.config.exploration_schedule = dqn_utils.LinearSchedule(1, 0)
         env_wrapper = A2cEnvironmentWrapper(0, self.env_factory,  A2cAgent(self.config, model), self.config, model,
                                             render=True)
         while not env_wrapper.done:

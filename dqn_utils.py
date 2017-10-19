@@ -423,3 +423,9 @@ def variable_summaries(var, var_name):
 
 def scalar_summary(var_name):
     tf.summary.scalar(var_name, tf.get_variable(var_name, initializer=0.))
+
+
+def covariance(xs, ys):
+    mean_xs, var_xs = tf.nn.moments(xs, axes=[0])
+    mean_ys, var_ys = tf.nn.moments(ys, axes=[0])
+    return tf.reduce_mean((xs - mean_xs) * (ys - mean_ys)) / (tf.sqrt(var_xs) * tf.sqrt(var_ys))
