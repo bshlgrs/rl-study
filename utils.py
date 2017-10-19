@@ -243,8 +243,10 @@ def variable_summaries(var, var_name):
         tf.summary.histogram('histogram', var)
 
 
-def scalar_summary(var_name):
-    tf.summary.scalar(var_name, tf.get_variable(var_name, initializer=0.))
+def scalar_summary(var_name, var=None):
+    if var is None:
+        var = tf.get_variable(var_name, initializer=0.)
+    tf.summary.scalar(var_name, var)
 
 
 def covariance(xs, ys):

@@ -9,7 +9,12 @@ import numpy as np
 
 
 class DdpgAgent:
-    def __init__(self, env=None, session=None, buffer_size=int(1e6), frame_history_len=1):
+    def __init__(self,
+                 env=None,
+                 session=None,
+                 buffer_size=int(1e6),
+                 frame_history_len=1,
+                 input_data_type=None):
         assert env is not None
         self.env = env
         self.session = session
@@ -17,16 +22,17 @@ class DdpgAgent:
         self.buffer_size = buffer_size
         self.input_shape = env.observation_space.shape
         self.gamma = 0.99
-        self.num_timesteps = 2000000
-        self.exploration = utils.LinearSchedule(int(2e6), 0.1)
-        self.learning_starts = 50000
+        self.num_timesteps = None
+        self.exploration = None # utils.LinearSchedule(int(1e5), 0.1)
+        self.learning_starts = None
         self.batch_size = 512
         self.learning_freq = 4 * self.batch_size / 32
+        self.input_data_type = input_data_type
 
     def train(self):
         model = DdpgModel(self, self.session)
 
-        buffer = replay_buffer.ReplayBuffer(self.buffer_size, self.frame_history_len)
+        buffer = replay_buffer.ReplayBuffer(self.buffer_size, self.frame_history_len, dtype=np.float32)
 
         last_obs = self.env.reset()
         done = False
@@ -68,13 +74,20 @@ class DdpgModel:
         gamma = agent.gamma
         num_actions = agent.env.action_space.n
 
-        obs = tf.placeholder(tf.uint8, [None] + list(agent.input_shape), name='obs')
-        obs_tp1 = tf.placeholder(tf.uint8, [None] + list(agent.input_shape), name='obs_tp1')
+        if agent.input_data_type == np.float32:
+            obs = tf.placeholder(tf.float32, [None] + list(agent.input_shape), name='obs')
+            obs_tp1 = tf.placeholder(tf.float32, [None] + list(agent.input_shape), name='obs_tp1')
+            obs_float = obs
+            obs_tp1_float = obs_tp1
+        else:
+            obs = tf.placeholder(tf.uint8, [None] + list(agent.input_shape), name='obs')
+            obs_tp1 = tf.placeholder(tf.uint8, [None] + list(agent.input_shape), name='obs_tp1')
+            obs_float = tf.cast(obs, tf.float32) / 255.0
+            obs_tp1_float = tf.cast(obs_tp1, tf.float32) / 255.0
+
         act = tf.placeholder(tf.uint8, [None], name='act')
         rew = tf.placeholder(tf.float32, [None], name='rew')
         done = tf.placeholder(tf.float32, [None], name='done_mask')
-        obs_float = tf.cast(obs, tf.float32) / 255.0
-        obs_tp1_float = tf.cast(obs_tp1, tf.float32) / 255.0
 
         tau = tf.placeholder(tf.float32, [], name="tau")
         learning_rate = tf.placeholder(tf.float32, [], name="learning_rate")
@@ -99,21 +112,23 @@ class DdpgModel:
         self.policy = policy
 
         def choose_action(s):
-            return np.random.choice(num_actions, p=policy(np.array([s]))[0])
+            return np.argmax(policy(np.array([s]))[0])
 
         self.choose_action = choose_action
 
         y = rew + gamma * tf.reduce_sum(actor_target * critic_target, axis=1) * (1 - done)
         utils.variable_summaries(y, 'y')
+        utils.scalar_summary('done_mean', tf.reduce_mean(done))
 
         one_hot_actions = tf.one_hot(act, num_actions)
         critic_loss = tf.reduce_mean(tf.square(y - tf.reduce_sum(critic * one_hot_actions, axis=1)) * (1 - done),
                                      name='critic_loss')
-        utils.scalar_summary('critic_loss')
+        utils.scalar_summary('critic_loss', critic_loss)
 
         neg_log_policy = -tf.log(actor + 1e-10) * one_hot_actions
-        policy_loss = tf.reduce_mean(tf.reduce_sum(neg_log_policy * tf.stop_gradient(critic), axis=1))
-        utils.scalar_summary('policy_loss')
+        policy_loss = tf.reduce_mean(tf.reduce_sum(neg_log_policy * tf.stop_gradient(critic), axis=1),
+                                     name='policy_loss')
+        utils.scalar_summary('policy_loss', policy_loss)
 
         critic_update = DdpgModel.make_optimizer_step(critic_func_vars, critic_loss, learning_rate, 0.5)
         # this is what the cool kids do
@@ -155,18 +170,21 @@ class DdpgModel:
         with tf.variable_scope(scope, reuse=reuse):
             # conv
             with tf.variable_scope('conv'):
-                conv1 = layers.convolution2d(obs_float, num_outputs=32, kernel_size=8, stride=4, activation_fn=tf.nn.relu)
-                conv2 = layers.convolution2d(conv1, num_outputs=64, kernel_size=2, stride=2, activation_fn=tf.nn.relu)
-                conv3 = layers.convolution2d(conv2, num_outputs=64, kernel_size=3, stride=1, activation_fn=tf.nn.relu)
-                conv_flattened = layers.flatten(conv3)
+                # conv1 = layers.convolution2d(obs_float, num_outputs=32, kernel_size=8, stride=4, activation_fn=tf.nn.relu)
+                # conv2 = layers.convolution2d(conv1, num_outputs=64, kernel_size=2, stride=2, activation_fn=tf.nn.relu)
+                # conv3 = layers.convolution2d(conv2, num_outputs=64, kernel_size=3, stride=1, activation_fn=tf.nn.relu)
+                # conv_flattened = layers.flatten(conv3)
+                conv_flattened = layers.flatten(obs_float)
 
             with tf.variable_scope('actor'):
-                actor1 = layers.fully_connected(conv_flattened, num_outputs=512, activation_fn=tf.nn.relu)
-                actor2 = layers.fully_connected(actor1, num_outputs=num_actions, activation_fn=None)
+                # actor1 = layers.fully_connected(conv_flattened, num_outputs=512, activation_fn=tf.nn.relu)
+                # actor2 = layers.fully_connected(actor1, num_outputs=num_actions, activation_fn=None)
+                actor2 = layers.fully_connected(conv_flattened, num_outputs=num_actions, activation_fn=None)
                 actor = tf.nn.softmax(actor2)
 
             with tf.variable_scope('critic'):
-                critic1 = layers.fully_connected(conv_flattened, num_outputs=512, activation_fn=tf.nn.relu)
+                # critic1 = layers.fully_connected(conv_flattened, num_outputs=512, activation_fn=tf.nn.relu)
+                critic1 = layers.fully_connected(conv_flattened, num_outputs=32, activation_fn=tf.nn.relu)
                 critic = layers.fully_connected(critic1, num_outputs=num_actions, activation_fn=None)
 
         return [actor, critic]

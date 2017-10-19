@@ -6,7 +6,7 @@ from utils import sample_n_unique
 
 
 class ReplayBuffer(object):
-    def __init__(self, size, frame_history_len):
+    def __init__(self, size, frame_history_len, dtype=np.uint8):
         """This is a memory efficient implementation of the replay buffer.
 
         The specific memory optimizations use here are:
@@ -42,6 +42,7 @@ class ReplayBuffer(object):
         self.action   = None
         self.reward   = None
         self.done     = None
+        self.dtype = dtype
 
     def can_sample(self, batch_size):
         """Returns true if `batch_size` different transitions can be sampled from the buffer."""
@@ -148,7 +149,7 @@ class ReplayBuffer(object):
             Index at which the frame is stored. To be used for `store_effect` later.
         """
         if self.obs is None:
-            self.obs      = np.empty([self.size] + list(frame.shape), dtype=np.uint8)
+            self.obs      = np.empty([self.size] + list(frame.shape), dtype=self.dtype)
             self.action   = np.empty([self.size],                     dtype=np.int32)
             self.reward   = np.empty([self.size],                     dtype=np.float32)
             self.done     = np.empty([self.size],                     dtype=np.bool)
