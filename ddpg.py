@@ -18,8 +18,8 @@ class DdpgAgent:
         self.input_shape = env.observation_space.shape
         self.gamma = 0.99
         self.num_timesteps = 2000000
-        self.exploration = utils.LinearSchedule(100000, 0.1)
-        self.learning_starts = 40000
+        self.exploration = utils.LinearSchedule(int(2e6), 0.1)
+        self.learning_starts = 50000
         self.batch_size = 512
         self.learning_freq = 4 * self.batch_size / 32
 
