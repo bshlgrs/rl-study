@@ -86,6 +86,9 @@ class DdpgModel:
 
         actor_target, critic_target = DdpgModel.get_networks(obs_tp1_float, num_actions, 'target_model', False)
 
+        utils.variable_summaries(actor, 'actor')
+        utils.variable_summaries(critic, 'critic')
+
         def policy(s):
             return session.run(actor, feed_dict={obs: s})
 
@@ -97,13 +100,16 @@ class DdpgModel:
         self.choose_action = choose_action
 
         y = rew + gamma * tf.reduce_sum(actor_target * critic_target, axis=1) * (1 - done)
+        utils.variable_summaries(y, 'y')
 
         one_hot_actions = tf.one_hot(act, num_actions)
         critic_loss = tf.reduce_mean(tf.square(y - tf.reduce_sum(critic * one_hot_actions, axis=1)) * (1 - done),
                                      name='critic_loss')
+        utils.scalar_summary('critic_loss')
 
         neg_log_policy = -tf.log(actor + 1e-10) * one_hot_actions
         policy_loss = tf.reduce_mean(tf.reduce_sum(neg_log_policy * tf.stop_gradient(critic), axis=1))
+        utils.scalar_summary('policy_loss')
 
         critic_update = DdpgModel.make_optimizer_step(critic_func_vars, critic_loss, learning_rate, 0.5)
         # this is what the cool kids do
