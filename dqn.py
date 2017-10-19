@@ -1,8 +1,12 @@
+import random
 import sys
 
 import gym.spaces
-from dqn_utils import *
+
 import models
+from replay_buffer import ReplayBuffer
+from utils import *
+import numpy as np
 
 
 # replay_buffer_size = 1000000,

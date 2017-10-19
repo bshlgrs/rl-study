@@ -1,9 +1,11 @@
+import random
+
 from gym import wrappers
 import os.path as osp
 
-from dqn_utils import *
+from utils import *
 from atari_wrappers import *
-from agent import DQNAgent
+from dqn import DQNAgent
 
 
 def atari_learn(num_timesteps, task_idx=3):

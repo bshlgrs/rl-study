@@ -1,6 +1,6 @@
 import datetime
 import tensorflow as tf
-from dqn_utils import *
+from utils import *
 from collections import namedtuple
 import tensorflow.contrib.layers as layers
 
@@ -112,7 +112,7 @@ class Model:
         q_func = self.q_func
 
         # casting to float on GPU ensures lower data transfer times. TODO: understand this better
-        obs_t_float = tf.cast(self.obs_t_ph, tf.float32) / 255.0
+
         obs_tp1_float = tf.cast(self.obs_tp1_ph, tf.float32) / 255.0
 
         q_values_all_actions = self.q_func(obs_t_float, num_actions, 'q_func', reuse=False)

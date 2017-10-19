@@ -3,7 +3,7 @@ import time
 from tensorflow.contrib import layers
 
 import models
-from dqn_utils import *
+from utils import *
 
 
 THREAD_DELAY = 0.001

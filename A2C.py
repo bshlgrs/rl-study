@@ -4,7 +4,7 @@ from collections import namedtuple, deque
 from tensorflow.contrib import layers
 import tensorflow as tf
 
-import dqn_utils
+import utils
 import numpy as np
 from models import atari_convnet
 
@@ -114,7 +114,7 @@ class A2cAgent:
 class A2cModel(object):
     def __init__(self, config, conductor):
         self.config = config
-        self.conductor  = conductor
+        self.conductor = conductor
 
         self.conv_function = self.config.conv_function
         self.session = self.config.session
@@ -145,28 +145,28 @@ class A2cModel(object):
             conv_layer = conv_function(obs_t_float, 'a3c_conv_func')
 
             with tf.variable_scope('policy'):
-                policy_fc1 = layers.fully_connected(conv_layer, num_outputs=16, activation_fn=tf.nn.relu)
-                policy_fc2 = layers.fully_connected(policy_fc1, num_outputs=num_actions, activation_fn=None)
+                # policy_fc1 = layers.fully_connected(conv_layer, num_outputs=16, activation_fn=tf.nn.relu)
+                policy_fc2 = layers.fully_connected(conv_layer, num_outputs=num_actions, activation_fn=None)
                 policy_out = tf.nn.softmax(policy_fc2)
 
-                # variable_summaries(policy_out, 'policy_out')
+                utils.variable_summaries(policy_fc2, 'policy_fc2')
 
             with tf.variable_scope('value'):
                 value_fc1 = layers.fully_connected(conv_layer, num_outputs=16, activation_fn=tf.nn.relu)
                 value_out = tf.reduce_sum(layers.fully_connected(value_fc1, num_outputs=1, activation_fn=None), axis=1)
 
-                dqn_utils.variable_summaries(value_out, 'value')
+                utils.variable_summaries(value_out, 'value')
 
         neg_log_p_ac = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=policy_out, labels=act_t_ph)
-        advantage = rew_t_ph - value_out
-        dqn_utils.variable_summaries(advantage, 'advantage')
+        empirical_advantage = rew_t_ph - value_out
+        utils.variable_summaries(empirical_advantage, 'empirical_advantage')
 
-        policy_loss = tf.reduce_mean(neg_log_p_ac * tf.stop_gradient(advantage))
+        policy_loss = tf.reduce_mean(neg_log_p_ac * tf.stop_gradient(empirical_advantage))
         tf.summary.scalar('policy_loss', policy_loss)
-        value_loss = tf.reduce_mean(tf.square(tf.squeeze(value_out) - rew_t_ph)) # previously this was advantage
+        value_loss = tf.reduce_mean(tf.square(tf.squeeze(value_out) - rew_t_ph)) # previously this was empirical_advantage
         tf.summary.scalar('value_loss', value_loss)
         tf.summary.scalar('value_bias', tf.reduce_mean(tf.squeeze(value_out) - rew_t_ph))
-        tf.summary.scalar('value_prediction_and_true_value_covariance', dqn_utils.covariance(value_out, rew_t_ph))
+        tf.summary.scalar('value_prediction_and_true_value_covariance', utils.covariance(value_out, rew_t_ph))
 
         entropy = tf.reduce_mean(-tf.log(policy_out + 1e-10) * policy_out) * num_actions
         tf.summary.scalar('entropy', entropy)
@@ -177,7 +177,7 @@ class A2cModel(object):
 
         self.merged_summaries = tf.summary.merge_all()
 
-        params = dqn_utils.find_trainable_variables('model')
+        params = utils.find_trainable_variables('model')
         clipped_grads, _ = tf.clip_by_global_norm(tf.gradients(total_loss, params), 0.5)
         grads = list(zip(clipped_grads, params))
 
@@ -218,7 +218,7 @@ class A2cModel(object):
 
 class A2cConfig:
     def __init__(self, env, session):
-        self.exploration_schedule = dqn_utils.LinearSchedule(2500000, 0.1)
+        self.exploration_schedule = utils.LinearSchedule(2500000, 0.1)
         self.session = session
         self.env = env
         self.num_actions = env.action_space.n
@@ -279,7 +279,7 @@ class A2cConductor:
 
     def enjoy(self, model):
         # type: (self, A2cModel) -> None
-        self.config.exploration_schedule = dqn_utils.LinearSchedule(1, 0)
+        self.config.exploration_schedule = utils.LinearSchedule(1, 0)
         env_wrapper = A2cEnvironmentWrapper(0, self.env_factory,  A2cAgent(self.config, model), self.config, model,
                                             render=True)
         while not env_wrapper.done:
