@@ -87,6 +87,7 @@ class DdpgModel:
         actor_target, critic_target = DdpgModel.get_networks(obs_tp1_float, num_actions, 'target_model', False)
 
         utils.variable_summaries(actor, 'actor')
+        utils.variable_summaries(rew, 'rew')
         utils.variable_summaries(critic, 'critic')
 
         def policy(s):
@@ -125,8 +126,11 @@ class DdpgModel:
 
         update_target_fn = tf.group(*update_target_fn, name='update_target_fn')
 
+        merged_summaries = tf.summary.merge_all()
+        train_writer = tf.summary.FileWriter('/tmp/train/', session.graph)
+
         def update(s, a, r, s_, done_mask, t):
-            session.run([critic_update, actor_update, update_target_fn],
+            summary_result, _, _, _ = session.run([merged_summaries, critic_update, actor_update, update_target_fn],
                         feed_dict={obs: s,
                                    act: a,
                                    rew: r,
@@ -134,6 +138,7 @@ class DdpgModel:
                                    learning_rate: self.current_learning_rate(t),
                                    done: done_mask,
                                    tau: 0.001})
+            train_writer.add_summary(summary_result, t)
 
         self.update = update
 
