@@ -89,6 +89,9 @@ class DdpgModel:
         utils.variable_summaries(actor, 'actor')
         utils.variable_summaries(rew, 'rew')
         utils.variable_summaries(critic, 'critic')
+        action_probabilities = tf.reduce_mean(actor, axis=0)
+        for i in range(num_actions):
+            tf.summary.scalar('action_%d_prob'%i, action_probabilities[i])
 
         def policy(s):
             return session.run(actor, feed_dict={obs: s})
