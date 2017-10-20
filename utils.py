@@ -5,7 +5,7 @@ import functools
 
 import gym
 import tensorflow as tf
-
+from scipy.stats import linregress
 
 def huber_loss(x, delta=1.0):
     # https://en.wikipedia.org/wiki/Huber_loss
@@ -253,3 +253,10 @@ def covariance(xs, ys):
     mean_xs, var_xs = tf.nn.moments(xs, axes=[0])
     mean_ys, var_ys = tf.nn.moments(ys, axes=[0])
     return tf.reduce_mean((xs - mean_xs) * (ys - mean_ys)) / (tf.sqrt(var_xs) * tf.sqrt(var_ys))
+
+
+def things_getting_better(numbers):
+    if len(numbers) == 0:
+        return 0.5
+    else:
+        return linregress(list(range(len(numbers))), numbers)[2:4]

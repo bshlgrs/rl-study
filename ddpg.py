@@ -7,7 +7,6 @@ import tensorflow.contrib.layers as layers
 import models
 import numpy as np
 
-
 class DdpgAgent:
     def __init__(self,
                  env=None,
@@ -25,9 +24,10 @@ class DdpgAgent:
         self.num_timesteps = None
         self.exploration = None # utils.LinearSchedule(int(1e5), 0.1)
         self.learning_starts = None
-        self.batch_size = 512
+        self.batch_size = 32
         self.learning_freq = 4 * self.batch_size / 32
         self.input_data_type = input_data_type
+        assert input_data_type == np.uint8 or input_data_type == np.float32
 
     def train(self):
         model = DdpgModel(self, self.session)
@@ -38,13 +38,21 @@ class DdpgAgent:
         done = False
         episode_rewards = []
         this_episode_reward = 0
+        rewards_reported_on = 0
 
         for t in range(self.num_timesteps):
-            if t % 10000 == 0:
-                print("timestep", t)
+            if t % 1000 == 0 and t > 0:
+                print("timestep", t, 'getting better p value', utils.things_getting_better(episode_rewards))
+                new_rewards = episode_rewards[rewards_reported_on:]
+                if len(new_rewards) > 0:
+                    mean_reward = sum(new_rewards) / len(new_rewards)
+                    # print('rewards reported on', new_rewards)
+                    print("Mean reward", mean_reward)
+                    rewards_reported_on = len(episode_rewards)
+
             if done:
                 episode_rewards.append(this_episode_reward)
-                print('this episode reward', this_episode_reward)
+                # print('this episode reward', this_episode_reward)
                 this_episode_reward = 0
                 last_obs = self.env.reset()
 
@@ -121,7 +129,7 @@ class DdpgModel:
         utils.scalar_summary('done_mean', tf.reduce_mean(done))
 
         one_hot_actions = tf.one_hot(act, num_actions)
-        critic_loss = tf.reduce_mean(tf.square(y - tf.reduce_sum(critic * one_hot_actions, axis=1)) * (1 - done),
+        critic_loss = tf.reduce_mean(tf.square(y - tf.reduce_sum(critic * one_hot_actions, axis=1)),
                                      name='critic_loss')
         utils.scalar_summary('critic_loss', critic_loss)
 
@@ -147,7 +155,9 @@ class DdpgModel:
         merged_summaries = tf.summary.merge_all()
         train_writer = tf.summary.FileWriter('/tmp/train/', session.graph)
 
+        outside_locals = locals()
         def update(s, a, r, s_, done_mask, t):
+            ol = outside_locals
             summary_result, _, _, _ = session.run([merged_summaries, critic_update, actor_update, update_target_fn],
                         feed_dict={obs: s,
                                    act: a,
