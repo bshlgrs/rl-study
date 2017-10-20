@@ -27,6 +27,7 @@ class DdpgAgent:
         self.batch_size = 32
         self.learning_freq = 4 * self.batch_size / 32
         self.input_data_type = input_data_type
+        self.learning_rate = 0.001
         assert input_data_type == np.uint8 or input_data_type == np.float32
 
     def train(self):
@@ -77,6 +78,7 @@ class DdpgAgent:
 
 class DdpgModel:
     def __init__(self, agent, session):
+        self.agent = agent
         # type: (DdpgAgent) -> None
 
         gamma = agent.gamma
@@ -138,9 +140,11 @@ class DdpgModel:
                                      name='policy_loss')
         utils.scalar_summary('policy_loss', policy_loss)
 
-        critic_update = DdpgModel.make_optimizer_step(critic_func_vars, critic_loss, learning_rate, 0.5)
+        learning_rate_batch_size_correction = agent.batch_size / 32
+        critic_learning_rate = learning_rate * learning_rate_batch_size_correction
+        critic_update = DdpgModel.make_optimizer_step(critic_func_vars, critic_loss, critic_learning_rate, 0.5)
         # this is what the cool kids do
-        actor_learning_rate = learning_rate / 10
+        actor_learning_rate = learning_rate * learning_rate_batch_size_correction / 10
         actor_update = DdpgModel.make_optimizer_step(actor_func_vars, policy_loss, actor_learning_rate, 0.5)
 
         target_net_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='target_model')
@@ -173,7 +177,7 @@ class DdpgModel:
         session.run(tf.global_variables_initializer())
 
     def current_learning_rate(self, t):
-        return 0.001
+        return self.agent.learning_rate
 
     @staticmethod
     def get_networks(obs_float, num_actions, scope, reuse=False):

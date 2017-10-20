@@ -43,4 +43,4 @@ def pong_test():
         conductor.enjoy(model)
 
 
-cartpole_test()
+pong_test()
