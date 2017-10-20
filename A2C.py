@@ -128,11 +128,13 @@ class A2cModel(object):
             obs_tp1 = tf.placeholder(tf.float32, [None] + list(config.input_shape), name='obs_tp1')
             obs_float = obs_ph
             obs_tp1_float = obs_tp1
-        else:
+        elif config.input_data_type == np.uint8:
             obs_ph = tf.placeholder(tf.uint8, [None] + list(config.input_shape), name='obs')
             obs_tp1 = tf.placeholder(tf.uint8, [None] + list(config.input_shape), name='obs_tp1')
             obs_float = tf.cast(obs_ph, tf.float32) / 255.0
             obs_tp1_float = tf.cast(obs_tp1, tf.float32) / 255.0
+        else:
+            raise NotImplementedError
 
         act_t_ph = tf.placeholder(tf.int32, [None], name='act_t_ph')
         rew_t_ph = tf.placeholder(tf.float32, [None], name='rew_t_ph')
@@ -152,14 +154,14 @@ class A2cModel(object):
             conv_layer = conv_function(obs_float, 'a3c_conv_func')
 
             with tf.variable_scope('policy'):
-                # policy_fc1 = layers.fully_connected(conv_layer, num_outputs=16, activation_fn=tf.nn.relu)
-                policy_fc2 = layers.fully_connected(conv_layer, num_outputs=num_actions, activation_fn=None)
+                policy_fc1 = layers.fully_connected(conv_layer, num_outputs=512, activation_fn=tf.nn.relu)
+                policy_fc2 = layers.fully_connected(policy_fc1, num_outputs=num_actions, activation_fn=None)
                 policy_out = tf.nn.softmax(policy_fc2)
 
                 utils.variable_summaries(policy_fc2, 'policy_fc2')
 
             with tf.variable_scope('value'):
-                value_fc1 = layers.fully_connected(conv_layer, num_outputs=16, activation_fn=tf.nn.relu)
+                value_fc1 = layers.fully_connected(conv_layer, num_outputs=512, activation_fn=tf.nn.relu)
                 value_out = tf.reduce_sum(layers.fully_connected(value_fc1, num_outputs=1, activation_fn=None), axis=1)
 
                 utils.variable_summaries(value_out, 'value')

@@ -184,21 +184,21 @@ class DdpgModel:
         with tf.variable_scope(scope, reuse=reuse):
             # conv
             with tf.variable_scope('conv'):
-                # conv1 = layers.convolution2d(obs_float, num_outputs=32, kernel_size=8, stride=4, activation_fn=tf.nn.relu)
-                # conv2 = layers.convolution2d(conv1, num_outputs=64, kernel_size=2, stride=2, activation_fn=tf.nn.relu)
-                # conv3 = layers.convolution2d(conv2, num_outputs=64, kernel_size=3, stride=1, activation_fn=tf.nn.relu)
-                # conv_flattened = layers.flatten(conv3)
-                conv_flattened = layers.flatten(obs_float)
+                conv1 = layers.convolution2d(obs_float, num_outputs=32, kernel_size=8, stride=4, activation_fn=tf.nn.relu)
+                conv2 = layers.convolution2d(conv1, num_outputs=64, kernel_size=2, stride=2, activation_fn=tf.nn.relu)
+                conv3 = layers.convolution2d(conv2, num_outputs=64, kernel_size=3, stride=1, activation_fn=tf.nn.relu)
+                conv_flattened = layers.flatten(conv3)
+                # conv_flattened = layers.flatten(obs_float)
 
             with tf.variable_scope('actor'):
-                # actor1 = layers.fully_connected(conv_flattened, num_outputs=512, activation_fn=tf.nn.relu)
-                # actor2 = layers.fully_connected(actor1, num_outputs=num_actions, activation_fn=None)
-                actor2 = layers.fully_connected(conv_flattened, num_outputs=num_actions, activation_fn=None)
+                actor1 = layers.fully_connected(conv_flattened, num_outputs=512, activation_fn=tf.nn.relu)
+                actor2 = layers.fully_connected(actor1, num_outputs=num_actions, activation_fn=None)
+                # actor2 = layers.fully_connected(conv_flattened, num_outputs=num_actions, activation_fn=None)
                 actor = tf.nn.softmax(actor2)
 
             with tf.variable_scope('critic'):
-                # critic1 = layers.fully_connected(conv_flattened, num_outputs=512, activation_fn=tf.nn.relu)
-                critic1 = layers.fully_connected(conv_flattened, num_outputs=32, activation_fn=tf.nn.relu)
+                critic1 = layers.fully_connected(conv_flattened, num_outputs=512, activation_fn=tf.nn.relu)
+                # critic1 = layers.fully_connected(conv_flattened, num_outputs=32, activation_fn=tf.nn.relu)
                 critic = layers.fully_connected(critic1, num_outputs=num_actions, activation_fn=None)
 
         return [actor, critic]

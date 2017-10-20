@@ -5,6 +5,7 @@ import tensorflow.contrib.layers as layers
 
 from utils import LinearSchedule
 from run_dqn_atari import get_env
+import numpy as np
 
 
 def cartpole_test():
@@ -31,16 +32,22 @@ def cartpole_test():
         conductor.enjoy(model)
 
 
+cartpole_test()
+
+
 def pong_test():
     def env_factory(monitor=False):
         return get_env(3, monitor=monitor)
 
     session = tf.Session()
     conductor = A2cConductor(env_factory, session)
+    config = conductor.config
+    config.input_data_type = np.uint8
+
     model = conductor.run()
 
     for i in range(10):
         conductor.enjoy(model)
 
 
-pong_test()
+# pong_test()
