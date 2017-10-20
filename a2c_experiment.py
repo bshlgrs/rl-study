@@ -23,6 +23,7 @@ def cartpole_test():
     config.conv_function = cartpole_conv_function
     config.exploration_schedule = LinearSchedule(150000, 0)
     config.num_steps = 150000
+    config.input_data_type = tf.float32
 
     model = conductor.run()
 

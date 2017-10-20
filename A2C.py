@@ -123,7 +123,17 @@ class A2cModel(object):
 
         self.total_t = 0
 
-        obs_t_ph = tf.placeholder(tf.uint8, [None] + list(config.input_shape), name='obs_t_ph')
+        if config.input_data_type == np.float32:
+            obs_ph = tf.placeholder(tf.float32, [None] + list(config.input_shape), name='obs')
+            obs_tp1 = tf.placeholder(tf.float32, [None] + list(config.input_shape), name='obs_tp1')
+            obs_float = obs_ph
+            obs_tp1_float = obs_tp1
+        else:
+            obs_ph = tf.placeholder(tf.uint8, [None] + list(config.input_shape), name='obs')
+            obs_tp1 = tf.placeholder(tf.uint8, [None] + list(config.input_shape), name='obs_tp1')
+            obs_float = tf.cast(obs_ph, tf.float32) / 255.0
+            obs_tp1_float = tf.cast(obs_tp1, tf.float32) / 255.0
+
         act_t_ph = tf.placeholder(tf.int32, [None], name='act_t_ph')
         rew_t_ph = tf.placeholder(tf.float32, [None], name='rew_t_ph')
         self.model_initialized = False
@@ -138,11 +148,8 @@ class A2cModel(object):
         num_actions = config.num_actions
         conv_function = self.conv_function
 
-        # casting to float on GPU ensures lower data transfer times. TODO: understand this better
-        obs_t_float = tf.cast(obs_t_ph, tf.float32) / 255.0
-
         with tf.variable_scope('model'):
-            conv_layer = conv_function(obs_t_float, 'a3c_conv_func')
+            conv_layer = conv_function(obs_float, 'a3c_conv_func')
 
             with tf.variable_scope('policy'):
                 # policy_fc1 = layers.fully_connected(conv_layer, num_outputs=16, activation_fn=tf.nn.relu)
@@ -184,15 +191,15 @@ class A2cModel(object):
         optimizer = tf.train.RMSPropOptimizer(learning_rate_ph, decay=.99, epsilon=1e-5)
         _train = optimizer.apply_gradients(grads)
 
-        self.tensors_for_get_policy = (obs_t_ph, policy_out)
-        self.tensors_for_train = (obs_t_ph, act_t_ph, rew_t_ph, learning_rate_ph, _train, neg_log_p_ac)
-        self.tensors_for_get_value = (obs_t_ph, value_out)
+        self.tensors_for_get_policy = (obs_ph, policy_out)
+        self.tensors_for_train = (obs_ph, act_t_ph, rew_t_ph, learning_rate_ph, _train, neg_log_p_ac)
+        self.tensors_for_get_value = (obs_ph, value_out)
         self.session.run(tf.global_variables_initializer())
         self.train_writer = tf.summary.FileWriter('/tmp/train', self.session.graph)
 
     def get_policy(self, observation):
-        (obs_t_ph, policy_out) = self.tensors_for_get_policy
-        policy = self.session.run(policy_out, feed_dict={obs_t_ph: np.array([observation])})[0]
+        (obs_ph, policy_out) = self.tensors_for_get_policy
+        policy = self.session.run(policy_out, feed_dict={obs_ph: np.array([observation])})[0]
 
         return policy
 
@@ -201,10 +208,10 @@ class A2cModel(object):
         a = np.stack(a)
         r = np.stack(r)
 
-        (obs_t_ph, act_t_ph, rew_t_ph, learning_rate_ph, _train, neg_log_p_ac) = self.tensors_for_train
+        (obs_ph, act_t_ph, rew_t_ph, learning_rate_ph, _train, neg_log_p_ac) = self.tensors_for_train
         merged_summaries = self.merged_summaries
 
-        summary, _ = self.session.run([merged_summaries, _train], feed_dict={obs_t_ph: s,
+        summary, _ = self.session.run([merged_summaries, _train], feed_dict={obs_ph: s,
                                                                              act_t_ph: a,
                                                                              rew_t_ph: r,
                                                                              learning_rate_ph: 0.05})
@@ -239,6 +246,8 @@ class A2cConfig:
         self.steps_per_epoch = int(self.minibatch_size / self.num_actors)
 
         self.num_steps = 2500000
+
+        self.input_data_type = None
 
 
 class A2cConductor:

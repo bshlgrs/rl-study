@@ -156,8 +156,8 @@ class DdpgModel:
         train_writer = tf.summary.FileWriter('/tmp/train/', session.graph)
 
         outside_locals = locals()
+
         def update(s, a, r, s_, done_mask, t):
-            ol = outside_locals
             summary_result, _, _, _ = session.run([merged_summaries, critic_update, actor_update, update_target_fn],
                         feed_dict={obs: s,
                                    act: a,
