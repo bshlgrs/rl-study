@@ -143,7 +143,7 @@ class A2cModel(object):
         action_probabilities = tf.reduce_mean(tf.one_hot(act_t_ph, config.num_actions), axis=0)
 
         for i in range(config.num_actions):
-            tf.summary.scalar('action_%d_prob'%i, action_probabilities[i])
+            tf.summary.scalar('action_probs/action_%d_prob'%i, action_probabilities[i])
 
         learning_rate_ph = tf.placeholder(tf.float32, (), name="learning_rate_ph")
 
@@ -216,13 +216,19 @@ class A2cModel(object):
         summary, _ = self.session.run([merged_summaries, _train], feed_dict={obs_ph: s,
                                                                              act_t_ph: a,
                                                                              rew_t_ph: r,
-                                                                             learning_rate_ph: 0.05})
+                                                                             learning_rate_ph: 0.03})
         self.train_writer.add_summary(summary, self.total_t)
         self.total_t += self.config.minibatch_size
 
     def predict_values(self, obs):
         (obs_t_ph, value_out) = self.tensors_for_get_value
         return self.session.run(value_out, feed_dict={obs_t_ph: obs})
+
+    def add_misc_summary(self, data, t):
+        summary = tf.Summary()
+        for key, value in data.items():
+            summary.value.add(tag=key, simple_value=value)
+        self.train_writer.add_summary(summary, t)
 
 
 class A2cConfig:
@@ -266,6 +272,8 @@ class A2cConductor:
         envs = [A2cEnvironmentWrapper(i, self.env_factory, A2cAgent(self.config, model), self.config, model)
                 for i in range(self.config.num_actors)]
 
+        total_episodes_run = 0
+
         for i in range(int(self.config.num_steps / self.config.minibatch_size)):
             s = []
             a = []
@@ -280,9 +288,15 @@ class A2cConductor:
 
             if i % 10 == 0 and model.episodes_log:
                 episodes = model.episodes_log
+                total_episodes_run += len(episodes)
                 model.episodes_log = []
+                t = i * self.config.minibatch_size
+                model.add_misc_summary({
+                    'average_episode_reward': sum(episodes) / len(episodes),
+                    'completed_episodes': total_episodes_run,
+                    'epsilon': self.config.exploration_schedule.value(t)
+                }, t)
 
-                print(i * self.config.minibatch_size, sum(episodes) / len(episodes))
             model.train(s, a, r)
 
         print("done!")
