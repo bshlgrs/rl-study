@@ -32,7 +32,7 @@ def cartpole_test():
         conductor.enjoy(model)
 
 
-cartpole_test()
+# cartpole_test()
 
 
 def pong_test():
@@ -50,4 +50,4 @@ def pong_test():
         conductor.enjoy(model)
 
 
-# pong_test()
+pong_test()
