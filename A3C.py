@@ -2,7 +2,7 @@ import threading
 import time
 from tensorflow.contrib import layers
 
-import models
+import dqn_models
 import useful_neural_nets
 from utils import *
 

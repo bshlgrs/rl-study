@@ -26,12 +26,12 @@ def value_function_mlp(input_features, hidden_layer_width=512):
     utils.variable_summaries(value_out, 'value')
 
     with tf.variable_scope('value_fc1', reuse=True):
-        utils.variable_summaries(tf.get_variable('weights'), 'value_fc1/weights')
-        utils.variable_summaries(tf.get_variable('biases'), 'value_fc1/biases')
+        utils.variable_summaries(tf.get_variable('weights'), 'value_fc1/weights', min_and_max=False)
+        utils.variable_summaries(tf.get_variable('biases'), 'value_fc1/biases', min_and_max=False)
 
     with tf.variable_scope('value_out', reuse=True):
-        utils.variable_summaries(tf.get_variable('weights'), 'value_out/weights')
-        utils.variable_summaries(tf.get_variable('biases'), 'value_out/biases')
+        utils.variable_summaries(tf.get_variable('weights'), 'value_out/weights', min_and_max=False)
+        utils.variable_summaries(tf.get_variable('biases'), 'value_out/biases', min_and_max=False)
     return value_out
 
 
@@ -41,9 +41,6 @@ def policy_linear(input_features, num_actions):
 
     nice_helpers.policy_argmax_summary(tf.argmax(policy_out, axis=1), num_actions)
     nice_helpers.policy_summaries(policy_out)
-
-    for var in tf.trainable_variables():
-        utils.variable_summaries(var, var.name, False)
 
     return policy_out
 
@@ -55,12 +52,15 @@ def atari_convnet(img_in, scope, reuse=False):
             conv2 = layers.convolution2d(conv1, num_outputs=64, kernel_size=4, stride=2, activation_fn=tf.nn.relu)
             conv3 = layers.convolution2d(conv2, num_outputs=64, kernel_size=3, stride=1, activation_fn=tf.nn.relu)
 
-        # The following would be cool, but I haven't made it work yet.
-            # The problem is that it doesn't know how to take into account the stacked frames that the conv filters
-            # take in.
-        # with tf.variable_scope('convnet', reuse=True):
-        #     conv1_weights = tf.get_variable('Conv/weights')
-        #     grid = visualize_conv_kernels.put_kernels_on_grid(conv1_weights)
-        #     tf.summary.image('conv1/kernels', grid, max_outputs=32)
+            # The following would be cool, but I haven't made it work yet.
+                # The problem is that it doesn't know how to take into account the stacked frames that the conv filters
+                # take in.
+            # with tf.variable_scope('convnet', reuse=True):
+            #     conv1_weights = tf.get_variable('Conv/weights')
+            #     grid = visualize_conv_kernels.put_kernels_on_grid(conv1_weights)
+            #     tf.summary.image('conv1/kernels', grid, max_outputs=32)
 
-    return layers.flatten(conv3)
+            out = layers.flatten(conv3)
+            utils.variable_summaries(out, 'atari conv output', False)
+            return out
+

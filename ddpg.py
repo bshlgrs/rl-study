@@ -5,7 +5,7 @@ import tensorflow as tf
 import replay_buffer
 import utils
 import tensorflow.contrib.layers as layers
-import models
+import dqn_models
 import numpy as np
 
 class DdpgAgent:

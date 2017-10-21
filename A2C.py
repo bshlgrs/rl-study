@@ -273,7 +273,7 @@ class A2cConductor:
                 a.extend(new_a)
                 r.extend(new_r)
 
-            if i % 10 == 0 and model.episodes_log:
+            if i % 10 == 0 and model.episodes_log and i != 0:
                 episodes = model.episodes_log
                 total_episodes_run += len(episodes)
                 model.episodes_log = []

@@ -3,7 +3,7 @@ import sys
 
 import gym.spaces
 
-import models
+import dqn_models
 from replay_buffer import ReplayBuffer
 from utils import *
 import numpy as np
@@ -27,7 +27,7 @@ class DQNAgent:
 
         self.exploration = LinearSchedule(2000000, 0.1)
         self.stopping_criterion = None
-        self.model = models.Model(session, env, batch_size=batch_size, q_func=q_func)
+        self.model = dqn_models.Model(session, env, batch_size=batch_size, q_func=q_func)
         self.target_update_freq = 10000
         self.log_rate = 10000
         self.learning_freq = 4 * batch_size / 32
