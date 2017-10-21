@@ -6,6 +6,8 @@ import functools
 import gym
 import tensorflow as tf
 from scipy.stats import linregress
+import numpy as np
+
 
 def huber_loss(x, delta=1.0):
     # https://en.wikipedia.org/wiki/Huber_loss
@@ -260,3 +262,18 @@ def things_getting_better(numbers):
         return 0.5
     else:
         return linregress(list(range(len(numbers))), numbers)[2:4]
+
+
+def explained_variance(ypred, y):
+    """
+    Computes fraction of variance that ypred explains about y.
+    Returns 1 - Var[y-ypred] / Var[y]
+
+    interpretation:
+        ev=0 => might as well have predicted 0
+        ev=1 => perfect prediction
+        ev<0 => worse than just predicting 0
+    """
+    assert y.ndim == 1 and ypred.ndim == 1
+    vary = np.var(y)
+    return np.nan if vary == 0 else 1 - np.var(y - ypred) / vary

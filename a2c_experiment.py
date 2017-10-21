@@ -22,8 +22,8 @@ def cartpole_test():
     config = conductor.config
 
     config.conv_function = cartpole_conv_function
-    config.exploration_schedule = LinearSchedule(150000, 0)
-    config.num_steps = 150000
+    config.exploration_schedule = LinearSchedule(500000, 0)
+    config.num_steps = 500000
     config.input_data_type = tf.float32
 
     model = conductor.run()
@@ -32,7 +32,7 @@ def cartpole_test():
         conductor.enjoy(model)
 
 
-# cartpole_test()
+cartpole_test()
 
 
 def pong_test():
@@ -50,4 +50,4 @@ def pong_test():
         conductor.enjoy(model)
 
 
-pong_test()
+# pong_test()

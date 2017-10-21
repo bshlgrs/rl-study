@@ -8,9 +8,6 @@ import utils
 import numpy as np
 from models import atari_convnet
 
-
-THREAD_DELAY = 0.001
-
 MemoryItem = namedtuple("MemoryItem", ["s", "a", "r", "s_", "done"])
 
 
@@ -172,7 +169,7 @@ class A2cModel(object):
 
         policy_loss = tf.reduce_mean(neg_log_p_ac * tf.stop_gradient(empirical_advantage))
         tf.summary.scalar('policy_loss', policy_loss)
-        value_loss = tf.reduce_mean(tf.square(tf.squeeze(value_out) - rew_t_ph)) # previously this was empirical_advantage
+        value_loss = tf.reduce_mean(tf.square(tf.squeeze(value_out) - rew_t_ph))
         tf.summary.scalar('value_loss', value_loss)
         tf.summary.scalar('value_bias', tf.reduce_mean(tf.squeeze(value_out) - rew_t_ph))
         tf.summary.scalar('value_prediction_and_true_value_covariance', utils.covariance(value_out, rew_t_ph))
@@ -216,7 +213,7 @@ class A2cModel(object):
         summary, _ = self.session.run([merged_summaries, _train], feed_dict={obs_ph: s,
                                                                              act_t_ph: a,
                                                                              rew_t_ph: r,
-                                                                             learning_rate_ph: 0.03})
+                                                                             learning_rate_ph: 0.002})
         self.train_writer.add_summary(summary, self.total_t)
         self.total_t += self.config.minibatch_size
 
@@ -244,7 +241,7 @@ class A2cConfig:
         self.input_shape = tuple([self.frame_history_len] + list(self.state_shape))
 
         self.gamma = 0.99
-        self.value_loss_constant = 0.5
+        self.value_loss_constant = 0.2 # was 0.5
         self.regularization_constant = 0.01
         self.conv_function = atari_convnet
 
@@ -253,7 +250,7 @@ class A2cConfig:
 
         self.steps_per_epoch = int(self.minibatch_size / self.num_actors)
 
-        self.num_steps = 2500000
+        self.num_steps = None
 
         self.input_data_type = None
 
