@@ -1,8 +1,10 @@
 import datetime
-import tensorflow as tf
-from utils import *
 from collections import namedtuple
+
 import tensorflow.contrib.layers as layers
+
+from useful_neural_nets import atari_convnet
+from utils import *
 
 OptimizerSpec = namedtuple("OptimizerSpec", ["constructor", "kwargs", "lr_schedule"])
 BestAction = namedtuple('BestAction', ['action_idx', 'q_value'])
@@ -11,15 +13,6 @@ BestAction = namedtuple('BestAction', ['action_idx', 'q_value'])
 def scalar_summaries(names):
     for name in names:
         scalar_summary(name)
-
-
-def atari_convnet(img_in, scope, reuse=False):
-    with tf.variable_scope(scope, reuse=reuse):
-        with tf.variable_scope("convnet", reuse=reuse):
-            conv1 = layers.convolution2d(img_in, num_outputs=32, kernel_size=8, stride=4, activation_fn=tf.nn.relu)
-            conv2 = layers.convolution2d(conv1, num_outputs=64, kernel_size=4, stride=2, activation_fn=tf.nn.relu)
-            conv3 = layers.convolution2d(conv2, num_outputs=64, kernel_size=3, stride=1, activation_fn=tf.nn.relu)
-    return layers.flatten(conv3)
 
 
 def atari_model(img_in, num_actions, scope, reuse=False):

@@ -3,6 +3,7 @@ import time
 from tensorflow.contrib import layers
 
 import models
+import useful_neural_nets
 from utils import *
 
 
@@ -250,7 +251,7 @@ class A3cConfig:
         self.gamma = 0.99
         self.value_loss_constant = 0.5
         self.regularization_constant = 0.01
-        self.conv_function = models.atari_convnet
+        self.conv_function = useful_neural_nets.atari_convnet
 
         self.num_steps = 75000
 

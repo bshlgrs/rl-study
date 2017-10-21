@@ -1,12 +1,14 @@
 import random
 from collections import namedtuple, deque
 
+from gym.spaces import Box
 from tensorflow.contrib import layers
 import tensorflow as tf
 
+import nice_helpers
 import utils
 import numpy as np
-from models import atari_convnet
+from useful_neural_nets import atari_convnet
 
 MemoryItem = namedtuple("MemoryItem", ["s", "a", "r", "s_", "done"])
 
@@ -78,7 +80,7 @@ class A2cAgent:
         self.gamma = 0.
 
     def act(self, obs):
-        if random.random() < self.config.exploration_schedule.value(self.model.total_t):
+        if random.random() < self.config.exploration(self.model.total_t):
             return random.randrange(self.config.num_actions)
         else:
             return np.random.choice(self.config.num_actions, p=self.model.get_policy(obs))
@@ -119,63 +121,48 @@ class A2cModel(object):
         self.episodes_log = []
 
         self.total_t = 0
+        num_actions = config.num_actions
 
-        if config.input_data_type == np.float32:
-            obs_ph = tf.placeholder(tf.float32, [None] + list(config.input_shape), name='obs')
-            obs_float = obs_ph
-        elif config.input_data_type == np.uint8:
-            obs_ph = tf.placeholder(tf.uint8, [None] + list(config.input_shape), name='obs')
-            obs_float = tf.cast(obs_ph, tf.float32) / 255.0
-        else:
-            raise NotImplementedError
-
+        obs_float, obs_ph = nice_helpers.obs_nodes(config.input_data_type, config.input_shape, 'obs')
         act_t_ph = tf.placeholder(tf.int32, [None], name='act_t_ph')
         rew_t_ph = tf.placeholder(tf.float32, [None], name='rew_t_ph')
-        self.model_initialized = False
-
-        action_probabilities = tf.reduce_mean(tf.one_hot(act_t_ph, config.num_actions), axis=0)
-
-        for i in range(config.num_actions):
-            tf.summary.scalar('action_probs/action_%d_prob'%i, action_probabilities[i])
-
         learning_rate_ph = tf.placeholder(tf.float32, (), name="learning_rate_ph")
 
-        num_actions = config.num_actions
+        nice_helpers.policy_argmax_summary(act_t_ph, num_actions)
+
         conv_function = self.conv_function
 
         with tf.variable_scope('model'):
-            conv_layer = conv_function(obs_float, 'a3c_conv_func')
+            conv_out = conv_function(obs_float, 'a3c_conv_func')
 
             with tf.variable_scope('policy'):
-                policy_fc1 = layers.fully_connected(conv_layer, num_outputs=512, activation_fn=tf.nn.relu)
-                policy_fc2 = layers.fully_connected(policy_fc1, num_outputs=num_actions, activation_fn=None)
-                policy_out = tf.nn.softmax(policy_fc2)
+                policy_out = config.get_policy_function(conv_out)
 
-                utils.variable_summaries(policy_fc2, 'policy_fc2')
+                entropy = tf.reduce_mean(-tf.log(policy_out + 1e-10) * policy_out) * num_actions
+                tf.summary.scalar('entropy', entropy)
 
             with tf.variable_scope('value'):
-                value_fc1 = layers.fully_connected(conv_layer, num_outputs=512, activation_fn=tf.nn.relu)
-                value_out = tf.reduce_sum(layers.fully_connected(value_fc1, num_outputs=1, activation_fn=None), axis=1)
+                value_out = config.get_value_function(conv_out)
 
-                utils.variable_summaries(value_out, 'value')
+        with tf.variable_scope('losses'):
+            neg_log_p_ac = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=policy_out, labels=act_t_ph)
 
-        neg_log_p_ac = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=policy_out, labels=act_t_ph)
-        empirical_advantage = rew_t_ph - value_out
-        utils.variable_summaries(empirical_advantage, 'empirical_advantage')
+            empirical_advantage = rew_t_ph - value_out
+            utils.variable_summaries(empirical_advantage, 'empirical_advantage')
 
-        policy_loss = tf.reduce_mean(neg_log_p_ac * tf.stop_gradient(empirical_advantage))
-        tf.summary.scalar('policy_loss', policy_loss)
-        value_loss = tf.reduce_mean(tf.square(tf.squeeze(value_out) - rew_t_ph))
-        tf.summary.scalar('value_loss', value_loss)
-        tf.summary.scalar('value_bias', tf.reduce_mean(tf.squeeze(value_out) - rew_t_ph))
-        tf.summary.scalar('value_prediction_and_true_value_covariance', utils.covariance(value_out, rew_t_ph))
+            policy_loss = tf.reduce_mean(neg_log_p_ac * tf.stop_gradient(empirical_advantage))
+            tf.summary.scalar('policy_loss', policy_loss)
 
-        entropy = tf.reduce_mean(-tf.log(policy_out + 1e-10) * policy_out) * num_actions
-        tf.summary.scalar('entropy', entropy)
-        total_loss = tf.reduce_sum(policy_loss +
-                                   config.value_loss_constant * value_loss -
-                                   config.regularization_constant * entropy, name="total_loss")
-        tf.summary.scalar('total_loss', total_loss)
+            value_loss = nice_helpers.mean_square_error(tf.squeeze(value_out), rew_t_ph)
+
+            tf.summary.scalar('value_loss', value_loss)
+            tf.summary.scalar('value_bias', tf.reduce_mean(tf.squeeze(value_out) - rew_t_ph))
+            tf.summary.scalar('value_prediction_and_true_value_covariance', utils.covariance(value_out, rew_t_ph))
+
+            total_loss = tf.reduce_sum(policy_loss +
+                                       config.value_loss_constant * value_loss -
+                                       config.regularization_constant * entropy, name="total_loss")
+            tf.summary.scalar('total_loss', total_loss)
 
         self.merged_summaries = tf.summary.merge_all()
 
@@ -209,7 +196,7 @@ class A2cModel(object):
         summary, _ = self.session.run([merged_summaries, _train], feed_dict={obs_ph: s,
                                                                              act_t_ph: a,
                                                                              rew_t_ph: r,
-                                                                             learning_rate_ph: 0.002})
+                                                                             learning_rate_ph: 0.005})
         self.train_writer.add_summary(summary, self.total_t)
         self.total_t += self.config.minibatch_size
 
@@ -225,10 +212,11 @@ class A2cModel(object):
 
 
 class A2cConfig:
-    def __init__(self, env, session):
-        self.exploration_schedule = utils.LinearSchedule(2500000, 0.1)
+    def __init__(self, env_factory, session, num_steps):
         self.session = session
-        self.env = env
+        self.env_factory = env_factory
+        env = env_factory()
+
         self.num_actions = env.action_space.n
 
         self.frame_history_len = 1
@@ -237,7 +225,7 @@ class A2cConfig:
         self.input_shape = tuple([self.frame_history_len] + list(self.state_shape))
 
         self.gamma = 0.99
-        self.value_loss_constant = 0.2 # was 0.5
+        self.value_loss_constant = 0.5 # was 0.5
         self.regularization_constant = 0.01
         self.conv_function = atari_convnet
 
@@ -246,17 +234,33 @@ class A2cConfig:
 
         self.steps_per_epoch = int(self.minibatch_size / self.num_actors)
 
-        self.num_steps = None
+        self.num_steps = num_steps
 
-        self.input_data_type = None
+        self.input_data_type = np.float32
+        if isinstance(env.observation_space, Box):
+            self.input_data_type = np.float32
+
+    def get_value_function(self, features):
+        raise NotImplementedError
+
+    def get_policy_function(self, features):
+        raise NotImplementedError
+
+    def get_config_function(self, stacked_input_data):
+        raise NotImplementedError
+
+    def exploration_schedule(self):
+        return utils.LinearSchedule(self.num_steps, 0.1)
+
+    def exploration(self, t):
+        return self.exploration_schedule().value(t)
 
 
 class A2cConductor:
-    def __init__(self, env_factory, session):
-        self.env_factory = env_factory
-        self.session = session
-
-        self.config = A2cConfig(env_factory(), session)
+    def __init__(self, config):
+        self.env_factory = config.env_factory
+        self.session = config.session
+        self.config = config
         self.done = False
 
     def run(self):
@@ -287,7 +291,7 @@ class A2cConductor:
                 model.add_misc_summary({
                     'average_episode_reward': sum(episodes) / len(episodes),
                     'completed_episodes': total_episodes_run,
-                    'epsilon': self.config.exploration_schedule.value(t)
+                    'epsilon': self.config.exploration(t)
                 }, t)
 
             model.train(s, a, r)
@@ -297,7 +301,10 @@ class A2cConductor:
 
     def enjoy(self, model):
         # type: (self, A2cModel) -> None
-        self.config.exploration_schedule = utils.LinearSchedule(1, 0)
+
+        # make exploration very low
+        self.config.exploration = lambda t: 0
+
         env_wrapper = A2cEnvironmentWrapper(0, self.env_factory,  A2cAgent(self.config, model), self.config, model,
                                             render=True)
         while not env_wrapper.done:
