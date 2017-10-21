@@ -44,8 +44,6 @@ def dueling_atari_model(img_in, num_actions, scope, reuse=False):
 
         q_func = value + normalized_advantage
 
-    # print('normalized_advantage shape:', normalized_advantage.get_shape())
-    # print('q func shape:', q_func.get_shape())
     return q_func
 
 
@@ -67,8 +65,6 @@ def dueling_atari_model_2(img_in, num_actions, scope, reuse=False):
 
         q_func = value + normalized_advantage
 
-    # print('normalized_advantage shape:', normalized_advantage.get_shape())
-    # print('q func shape:', q_func.get_shape())
     return q_func
 
 

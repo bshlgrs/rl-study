@@ -1,6 +1,7 @@
 import random
 from collections import namedtuple, deque
 
+from datetime import datetime
 from gym.spaces import Box
 from tensorflow.contrib import layers
 import tensorflow as tf
@@ -49,8 +50,6 @@ class A2cEnvironmentWrapper:
 
         self.queue.append(self.env.reset())
         self.model.episodes_log.append(self.episode_reward)
-        # if random.random() < 0.01:
-        #     print('Episode reward at total timestep %d is %f' % (self.model.total_t, self.episode_reward))
         self.episode_reward = 0
         self.done = False
 
@@ -125,20 +124,19 @@ class A2cModel(object):
 
         obs_float, obs_ph = nice_helpers.obs_nodes(config.input_data_type, config.input_shape, 'obs')
         act_t_ph = tf.placeholder(tf.int32, [None], name='act_t_ph')
-        rew_t_ph = tf.placeholder(tf.float32, [None], name='rew_t_ph')
+        return_t_ph = tf.placeholder(tf.float32, [None], name='return_t_ph')
         learning_rate_ph = tf.placeholder(tf.float32, (), name="learning_rate_ph")
 
         nice_helpers.policy_argmax_summary(act_t_ph, num_actions)
 
-        conv_function = self.conv_function
-
         with tf.variable_scope('model'):
-            conv_out = conv_function(obs_float, 'a3c_conv_func')
+            conv_out = config.get_conv_function(obs_float)
 
             with tf.variable_scope('policy'):
                 policy_out = config.get_policy_function(conv_out)
 
-                entropy = tf.reduce_mean(-tf.log(policy_out + 1e-10) * policy_out) * num_actions
+                with tf.variable_scope('entropy'):
+                    entropy = tf.reduce_mean(-tf.log(policy_out + 1e-10) * policy_out) * num_actions
                 tf.summary.scalar('entropy', entropy)
 
             with tf.variable_scope('value'):
@@ -147,24 +145,22 @@ class A2cModel(object):
         with tf.variable_scope('losses'):
             neg_log_p_ac = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=policy_out, labels=act_t_ph)
 
-            empirical_advantage = rew_t_ph - value_out
+            empirical_advantage = return_t_ph - value_out
             utils.variable_summaries(empirical_advantage, 'empirical_advantage')
 
             policy_loss = tf.reduce_mean(neg_log_p_ac * tf.stop_gradient(empirical_advantage))
             tf.summary.scalar('policy_loss', policy_loss)
 
-            value_loss = nice_helpers.mean_square_error(tf.squeeze(value_out), rew_t_ph)
-
+            value_loss = nice_helpers.mean_square_error(tf.squeeze(value_out), return_t_ph)
             tf.summary.scalar('value_loss', value_loss)
-            tf.summary.scalar('value_bias', tf.reduce_mean(tf.squeeze(value_out) - rew_t_ph))
-            tf.summary.scalar('value_prediction_and_true_value_covariance', utils.covariance(value_out, rew_t_ph))
+            tf.summary.scalar('value_prediction_and_true_value_covariance', utils.covariance(value_out, return_t_ph))
 
             total_loss = tf.reduce_sum(policy_loss +
                                        config.value_loss_constant * value_loss -
                                        config.regularization_constant * entropy, name="total_loss")
             tf.summary.scalar('total_loss', total_loss)
 
-        self.merged_summaries = tf.summary.merge_all()
+        merged_summaries = tf.summary.merge_all()
 
         params = utils.find_trainable_variables('model')
         clipped_grads, _ = tf.clip_by_global_norm(tf.gradients(total_loss, params), 0.5)
@@ -173,42 +169,35 @@ class A2cModel(object):
         optimizer = tf.train.RMSPropOptimizer(learning_rate_ph, decay=.99, epsilon=1e-5)
         _train = optimizer.apply_gradients(grads)
 
-        self.tensors_for_get_policy = (obs_ph, policy_out)
-        self.tensors_for_train = (obs_ph, act_t_ph, rew_t_ph, learning_rate_ph, _train, neg_log_p_ac)
-        self.tensors_for_get_value = (obs_ph, value_out)
+        def get_policy(observation):
+            return self.session.run(policy_out, feed_dict={obs_ph: np.array([observation])})[0]
+
+        self.get_policy = get_policy
+
+        def train(s, a, r):
+            s = np.stack(s)
+            a = np.stack(a)
+            r = np.stack(r)
+
+            summary, _ = self.session.run([merged_summaries, _train], feed_dict={obs_ph: s,
+                                                                                 act_t_ph: a,
+                                                                                 return_t_ph: r,
+                                                                                 learning_rate_ph: 0.005})
+            self.train_writer.add_summary(summary, self.total_t)
+            self.total_t += self.config.minibatch_size
+
+        self.train = train
+
+        def predict_values(obs):
+            return self.session.run(value_out, feed_dict={obs_ph: obs})
+
+        self.predict_values = predict_values
+
         self.session.run(tf.global_variables_initializer())
-        self.train_writer = tf.summary.FileWriter('/tmp/train', self.session.graph)
-
-    def get_policy(self, observation):
-        (obs_ph, policy_out) = self.tensors_for_get_policy
-        policy = self.session.run(policy_out, feed_dict={obs_ph: np.array([observation])})[0]
-
-        return policy
-
-    def train(self, s, a, r):
-        s = np.stack(s)
-        a = np.stack(a)
-        r = np.stack(r)
-
-        (obs_ph, act_t_ph, rew_t_ph, learning_rate_ph, _train, neg_log_p_ac) = self.tensors_for_train
-        merged_summaries = self.merged_summaries
-
-        summary, _ = self.session.run([merged_summaries, _train], feed_dict={obs_ph: s,
-                                                                             act_t_ph: a,
-                                                                             rew_t_ph: r,
-                                                                             learning_rate_ph: 0.005})
-        self.train_writer.add_summary(summary, self.total_t)
-        self.total_t += self.config.minibatch_size
-
-    def predict_values(self, obs):
-        (obs_t_ph, value_out) = self.tensors_for_get_value
-        return self.session.run(value_out, feed_dict={obs_t_ph: obs})
+        self.train_writer = tf.summary.FileWriter('/tmp/train/' + str(datetime.now()) + "/", self.session.graph)
 
     def add_misc_summary(self, data, t):
-        summary = tf.Summary()
-        for key, value in data.items():
-            summary.value.add(tag=key, simple_value=value)
-        self.train_writer.add_summary(summary, t)
+        nice_helpers.add_misc_summary(data, t, self.train_writer)
 
 
 class A2cConfig:
@@ -225,8 +214,8 @@ class A2cConfig:
         self.input_shape = tuple([self.frame_history_len] + list(self.state_shape))
 
         self.gamma = 0.99
-        self.value_loss_constant = 0.5 # was 0.5
-        self.regularization_constant = 0.01
+        self.value_loss_constant = 1 # was 0.5
+        self.regularization_constant = 0.1
         self.conv_function = atari_convnet
 
         self.num_actors = 16
@@ -246,7 +235,7 @@ class A2cConfig:
     def get_policy_function(self, features):
         raise NotImplementedError
 
-    def get_config_function(self, stacked_input_data):
+    def get_conv_function(self, stacked_input_data):
         raise NotImplementedError
 
     def exploration_schedule(self):

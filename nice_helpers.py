@@ -31,3 +31,10 @@ def policy_summaries(policy_out):
 
 def mean_square_error(x, y):
     return tf.reduce_mean(tf.square(x - y))
+
+
+def add_misc_summary(data, t, writer):
+    summary = tf.Summary()
+    for key, value in data.items():
+        summary.value.add(tag='misc/' + key, simple_value=value)
+    writer.add_summary(summary, t)
