@@ -22,7 +22,7 @@ class PongConfig(A2cConfig):
 
 def cartpole_test():
     def env_factory(nvm=False):
-        return gym.make('CartPole-v0')
+        return gym.make('Pong-v0')
 
     session = tf.Session()
     config = PongConfig(env_factory, session, 2500000)
