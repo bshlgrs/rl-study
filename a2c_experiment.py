@@ -32,7 +32,7 @@ def cartpole_test():
         conductor.enjoy(model)
 
 
-cartpole_test()
+# cartpole_test()
 
 
 def pong_test():
@@ -42,6 +42,8 @@ def pong_test():
     session = tf.Session()
     conductor = A2cConductor(env_factory, session)
     config = conductor.config
+    config.exploration_schedule = LinearSchedule(2500000, 0)
+    config.num_steps = 2500000
     config.input_data_type = np.uint8
 
     model = conductor.run()
@@ -50,4 +52,4 @@ def pong_test():
         conductor.enjoy(model)
 
 
-# pong_test()
+pong_test()

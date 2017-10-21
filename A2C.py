@@ -122,14 +122,10 @@ class A2cModel(object):
 
         if config.input_data_type == np.float32:
             obs_ph = tf.placeholder(tf.float32, [None] + list(config.input_shape), name='obs')
-            obs_tp1 = tf.placeholder(tf.float32, [None] + list(config.input_shape), name='obs_tp1')
             obs_float = obs_ph
-            obs_tp1_float = obs_tp1
         elif config.input_data_type == np.uint8:
             obs_ph = tf.placeholder(tf.uint8, [None] + list(config.input_shape), name='obs')
-            obs_tp1 = tf.placeholder(tf.uint8, [None] + list(config.input_shape), name='obs_tp1')
             obs_float = tf.cast(obs_ph, tf.float32) / 255.0
-            obs_tp1_float = tf.cast(obs_tp1, tf.float32) / 255.0
         else:
             raise NotImplementedError
 
