@@ -31,7 +31,7 @@ def value_function_mlp(input_features, hidden_layer_width=512):
 
     with tf.variable_scope('value_out', reuse=True):
         utils.variable_summaries(tf.get_variable('weights'), 'value_out/weights', min_and_max=False)
-        utils.variable_summaries(tf.get_variable('biases'), 'value_out/biases', min_and_max=False)
+        utils.scalar_summary('value_out/biases', tf.reduce_mean(tf.get_variable('biases')))
     return value_out
 
 
