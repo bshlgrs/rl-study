@@ -61,6 +61,6 @@ def atari_convnet(img_in, scope, reuse=False):
             #     tf.summary.image('conv1/kernels', grid, max_outputs=32)
 
             out = layers.flatten(conv3)
-            utils.variable_summaries(out, 'atari conv output', False)
+            utils.variable_summaries(out, 'atari_conv_output', False)
             return out
 
