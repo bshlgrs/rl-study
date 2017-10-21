@@ -141,7 +141,8 @@ class A2cModel(object):
                 tf.summary.scalar('entropy', entropy)
 
             with tf.variable_scope('value'):
-                value_out = config.get_value_function(conv_out)
+                conv_for_value = config.get_conv_function(obs_float)
+                value_out = config.get_value_function(conv_for_value)
 
         with tf.variable_scope('losses'):
             neg_log_p_ac = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=policy_out, labels=act_t_ph)
