@@ -14,9 +14,6 @@ def policy_mlp(input_features, num_actions, hidden_layer_width=512):
     nice_helpers.policy_argmax_summary(tf.argmax(policy_out, axis=1), num_actions)
     nice_helpers.policy_summaries(policy_out)
 
-    for var in tf.trainable_variables():
-        utils.variable_summaries(var, var.name, False)
-
     return policy_out
 
 
