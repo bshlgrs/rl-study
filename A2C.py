@@ -167,7 +167,7 @@ class A2cModel(object):
         clipped_grads, _ = tf.clip_by_global_norm(tf.gradients(total_loss, params), 0.5)
         grads = list(zip(clipped_grads, params))
 
-        optimizer = tf.train.RMSPropOptimizer(learning_rate_ph, decay=.99, epsilon=1e-5)
+        optimizer = tf.train.AdamOptimizer(learning_rate_ph)
         _train = optimizer.apply_gradients(grads)
 
         def get_policy(observation):
@@ -183,7 +183,7 @@ class A2cModel(object):
             summary, _ = self.session.run([merged_summaries, _train], feed_dict={obs_ph: s,
                                                                                  act_t_ph: a,
                                                                                  return_t_ph: r,
-                                                                                 learning_rate_ph: 0.005})
+                                                                                 learning_rate_ph: 0.001})
             self.train_writer.add_summary(summary, self.total_t)
             self.total_t += self.config.minibatch_size
 
