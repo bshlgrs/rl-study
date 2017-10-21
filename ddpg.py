@@ -1,5 +1,6 @@
 import random
 
+import datetime
 import tensorflow as tf
 import replay_buffer
 import utils
@@ -157,7 +158,7 @@ class DdpgModel:
         update_target_fn = tf.group(*update_target_fn, name='update_target_fn')
 
         merged_summaries = tf.summary.merge_all()
-        train_writer = tf.summary.FileWriter('/tmp/train/', session.graph)
+        train_writer = tf.summary.FileWriter('/tmp/train/' + str(datetime.datetime.now()) + "/", session.graph)
 
         outside_locals = locals()
 
