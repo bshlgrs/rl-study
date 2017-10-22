@@ -25,7 +25,7 @@ def cartpole_test():
         return gym.make('CartPole-v0')
 
     session = tf.Session()
-    config = SimpleConfig(env_factory, session, 150000)
+    config = SimpleConfig(env_factory, session, 200000)
 
     conductor = A2cConductor(config)
 

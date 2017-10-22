@@ -11,6 +11,7 @@ import dqn_models
 import numpy as np
 import useful_neural_nets
 
+
 class DdpgAgent:
     def __init__(self,
                  env=None,
@@ -88,16 +89,8 @@ class DdpgModel:
         gamma = agent.gamma
         num_actions = agent.env.action_space.n
 
-        if agent.input_data_type == np.float32:
-            obs = tf.placeholder(tf.float32, [None] + list(agent.input_shape), name='obs')
-            obs_tp1 = tf.placeholder(tf.float32, [None] + list(agent.input_shape), name='obs_tp1')
-            obs_float = obs
-            obs_tp1_float = obs_tp1
-        else:
-            obs = tf.placeholder(tf.uint8, [None] + list(agent.input_shape), name='obs')
-            obs_tp1 = tf.placeholder(tf.uint8, [None] + list(agent.input_shape), name='obs_tp1')
-            obs_float = tf.cast(obs, tf.float32) / 255.0
-            obs_tp1_float = tf.cast(obs_tp1, tf.float32) / 255.0
+        obs, obs_float = nice_helpers.obs_nodes(agent.input_data_type, agent.input_shape, 'obs')
+        obs_tp1, obs_tp1_float = nice_helpers.obs_nodes(agent.input_data_type, agent.input_shape, 'obs')
 
         act = tf.placeholder(tf.uint8, [None], name='act')
         rew = tf.placeholder(tf.float32, [None], name='rew')
@@ -117,12 +110,10 @@ class DdpgModel:
 
         def policy(s):
             return session.run(actor, feed_dict={obs: s})
-
         self.policy = policy
 
         def choose_action(s):
             return np.argmax(policy(np.array([s]))[0])
-
         self.choose_action = choose_action
 
         y = rew + gamma * tf.reduce_sum(actor_target * critic_target, axis=1) * (1 - done)
@@ -144,10 +135,8 @@ class DdpgModel:
         learning_rate_batch_size_correction = agent.batch_size / 32
         critic_learning_rate = learning_rate * learning_rate_batch_size_correction
         critic_update = DdpgModel.make_optimizer_step(critic_func_vars, critic_loss, critic_learning_rate, 0.5)
-        # this is what the cool kids do
         actor_learning_rate = learning_rate * learning_rate_batch_size_correction / 10
         actor_update = DdpgModel.make_optimizer_step(actor_func_vars, policy_loss, actor_learning_rate, 0.5)
-
 
         merged_summaries = tf.summary.merge_all()
         train_writer = tf.summary.FileWriter('/tmp/train/' + str(datetime.datetime.now()) + "/", session.graph)
