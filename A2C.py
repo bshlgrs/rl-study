@@ -130,7 +130,6 @@ class A2cModel(object):
         nice_helpers.policy_argmax_summary(act_t_ph, num_actions)
 
         with tf.variable_scope('model'):
-
             conv_out = config.get_conv_function(obs_float)
 
             with tf.variable_scope('policy'):

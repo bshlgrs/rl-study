@@ -35,6 +35,23 @@ def value_function_mlp(input_features, hidden_layer_width=512):
     return value_out
 
 
+def advantage_function_mlp(input_features, num_actions, hidden_layer_width=512):
+    adv_fc1 = layers.fully_connected(input_features, num_outputs=hidden_layer_width, activation_fn=tf.nn.relu,
+                                       scope='adv_fc1')
+    adv_out = layers.fully_connected(adv_fc1, num_outputs=num_actions, activation_fn=None, scope='adv_out')
+
+    utils.variable_summaries(adv_out, 'adv_out')
+
+    with tf.variable_scope('adv_fc1', reuse=True):
+        utils.variable_summaries(tf.get_variable('weights'), 'adv_fc1/weights', min_and_max=False)
+        utils.variable_summaries(tf.get_variable('biases'), 'adv_fc1/biases', min_and_max=False)
+
+    with tf.variable_scope('adv_out', reuse=True):
+        utils.variable_summaries(tf.get_variable('weights'), 'adv_out/weights', min_and_max=False)
+        utils.scalar_summary('adv_out/biases', tf.reduce_mean(tf.get_variable('biases')))
+    return adv_out
+
+
 def policy_linear(input_features, num_actions):
     policy_logits = layers.fully_connected(input_features, num_outputs=num_actions, activation_fn=None)
     policy_out = tf.nn.softmax(policy_logits)

@@ -38,3 +38,27 @@ def add_misc_summary(data, t, writer):
     for key, value in data.items():
         summary.value.add(tag='misc/' + key, simple_value=value)
     writer.add_summary(summary, t)
+
+
+def soft_update_target_fn(model_scope, target_scope, tau, name='soft_update_target_fn'):
+    model_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=model_scope)
+    target_net_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=target_scope)
+
+    update_target_fn = []
+    for var, var_target in zip(sorted(model_vars, key=lambda v: v.name),
+                               sorted(target_net_vars, key=lambda v: v.name)):
+        update_target_fn.append(var_target.assign(tau * var + (1 - tau) * var_target))
+
+    return tf.group(*update_target_fn, name=name)
+
+
+def hard_update_target_fn(model_scope, target_scope, name='update_target_fn'):
+    model_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=model_scope)
+    target_net_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=target_scope)
+
+    update_target_fn = []
+    for var, var_target in zip(sorted(model_vars, key=lambda v: v.name),
+                               sorted(target_net_vars, key=lambda v: v.name)):
+        update_target_fn.append(var_target.assign(var))
+
+    return tf.group(*update_target_fn, name=name)

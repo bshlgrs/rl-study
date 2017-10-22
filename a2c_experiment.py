@@ -34,24 +34,8 @@ def cartpole_test():
     for i in range(10):
         conductor.enjoy(model)
 
-cartpole_test()
 
-# def mountain_car_test():
-#     def env_factory(nvm=False):
-#         return gym.make('MountainCar-v0')
-#
-#     session = tf.Session()
-#     config = SimpleConfig(env_factory, session, 500000)
-#
-#     conductor = A2cConductor(config)
-#
-#     model = conductor.run()
-#
-#     for i in range(10):
-#         conductor.enjoy(model)
-#
-#
-# mountain_car_test()
+cartpole_test()
 
 
 

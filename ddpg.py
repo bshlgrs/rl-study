@@ -2,11 +2,14 @@ import random
 
 import datetime
 import tensorflow as tf
+
+import nice_helpers
 import replay_buffer
 import utils
 import tensorflow.contrib.layers as layers
 import dqn_models
 import numpy as np
+import useful_neural_nets
 
 class DdpgAgent:
     def __init__(self,
@@ -25,7 +28,7 @@ class DdpgAgent:
         self.num_timesteps = None
         self.exploration = None # utils.LinearSchedule(int(1e5), 0.1)
         self.learning_starts = None
-        self.batch_size = 32
+        self.batch_size = 64
         self.learning_freq = 4 * self.batch_size / 32
         self.input_data_type = input_data_type
         self.learning_rate = 0.001
@@ -44,17 +47,17 @@ class DdpgAgent:
 
         for t in range(self.num_timesteps):
             if t % 1000 == 0 and t > 0:
-                print("timestep", t, 'getting better p value', utils.things_getting_better(episode_rewards))
                 new_rewards = episode_rewards[rewards_reported_on:]
                 if len(new_rewards) > 0:
                     mean_reward = sum(new_rewards) / len(new_rewards)
-                    # print('rewards reported on', new_rewards)
-                    print("Mean reward", mean_reward)
-                    rewards_reported_on = len(episode_rewards)
+                    model.add_misc_summary({
+                        'average_episode_reward': mean_reward,
+                        'num_episodes': len(episode_rewards),
+                        'epsilon': self.exploration.value(t)
+                    }, t)
 
             if done:
                 episode_rewards.append(this_episode_reward)
-                # print('this episode reward', this_episode_reward)
                 this_episode_reward = 0
                 last_obs = self.env.reset()
 
@@ -79,8 +82,8 @@ class DdpgAgent:
 
 class DdpgModel:
     def __init__(self, agent, session):
+        # type: (DdpgAgent, tf.Session) -> None
         self.agent = agent
-        # type: (DdpgAgent) -> None
 
         gamma = agent.gamma
         num_actions = agent.env.action_space.n
@@ -99,6 +102,7 @@ class DdpgModel:
         act = tf.placeholder(tf.uint8, [None], name='act')
         rew = tf.placeholder(tf.float32, [None], name='rew')
         done = tf.placeholder(tf.float32, [None], name='done_mask')
+        nice_helpers.policy_argmax_summary(act, num_actions)
 
         tau = tf.placeholder(tf.float32, [], name="tau")
         learning_rate = tf.placeholder(tf.float32, [], name="learning_rate")
@@ -109,13 +113,7 @@ class DdpgModel:
         model_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='model')
 
         actor_target, critic_target = DdpgModel.get_networks(obs_tp1_float, num_actions, 'target_model', False)
-
-        utils.variable_summaries(actor, 'actor')
-        utils.variable_summaries(rew, 'rew')
-        utils.variable_summaries(critic, 'critic')
-        action_probabilities = tf.reduce_mean(actor, axis=0)
-        for i in range(num_actions):
-            tf.summary.scalar('action_%d_prob'%i, action_probabilities[i])
+        update_target_fn = nice_helpers.soft_update_target_fn('model', 'target_model', tau)
 
         def policy(s):
             return session.run(actor, feed_dict={obs: s})
@@ -131,15 +129,17 @@ class DdpgModel:
         utils.variable_summaries(y, 'y')
         utils.scalar_summary('done_mean', tf.reduce_mean(done))
 
-        one_hot_actions = tf.one_hot(act, num_actions)
-        critic_loss = tf.reduce_mean(tf.square(y - tf.reduce_sum(critic * one_hot_actions, axis=1)),
-                                     name='critic_loss')
-        utils.scalar_summary('critic_loss', critic_loss)
+        with tf.variable_scope('loss'):
+            one_hot_actions = tf.one_hot(act, num_actions)
 
-        neg_log_policy = -tf.log(actor + 1e-10) * one_hot_actions
-        policy_loss = tf.reduce_mean(tf.reduce_sum(neg_log_policy * tf.stop_gradient(critic), axis=1),
-                                     name='policy_loss')
-        utils.scalar_summary('policy_loss', policy_loss)
+            critic_loss = tf.reduce_mean(tf.square(y - tf.reduce_sum(critic * one_hot_actions, axis=1)),
+                                         name='critic_loss')
+            utils.scalar_summary('critic_loss', critic_loss)
+
+            neg_log_policy = -tf.log(actor + 1e-10) * one_hot_actions
+            policy_loss = tf.reduce_mean(tf.reduce_sum(neg_log_policy * tf.stop_gradient(critic), axis=1),
+                                         name='policy_loss')
+            utils.scalar_summary('policy_loss', policy_loss)
 
         learning_rate_batch_size_correction = agent.batch_size / 32
         critic_learning_rate = learning_rate * learning_rate_batch_size_correction
@@ -148,14 +148,6 @@ class DdpgModel:
         actor_learning_rate = learning_rate * learning_rate_batch_size_correction / 10
         actor_update = DdpgModel.make_optimizer_step(actor_func_vars, policy_loss, actor_learning_rate, 0.5)
 
-        target_net_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='target_model')
-
-        update_target_fn = []
-        for var, var_target in zip(sorted(model_vars, key=lambda v: v.name),
-                                   sorted(target_net_vars, key=lambda v: v.name)):
-            update_target_fn.append(var_target.assign(tau * var + (1 - tau) * var_target))
-
-        update_target_fn = tf.group(*update_target_fn, name='update_target_fn')
 
         merged_summaries = tf.summary.merge_all()
         train_writer = tf.summary.FileWriter('/tmp/train/' + str(datetime.datetime.now()) + "/", session.graph)
@@ -175,6 +167,10 @@ class DdpgModel:
 
         self.update = update
 
+        def add_misc_summary(data, t):
+            nice_helpers.add_misc_summary(data, t, train_writer)
+        self.add_misc_summary = add_misc_summary
+
         session.run(tf.global_variables_initializer())
 
     def current_learning_rate(self, t):
@@ -184,23 +180,15 @@ class DdpgModel:
     def get_networks(obs_float, num_actions, scope, reuse=False):
         with tf.variable_scope(scope, reuse=reuse):
             # conv
-            with tf.variable_scope('conv'):
-                conv1 = layers.convolution2d(obs_float, num_outputs=32, kernel_size=8, stride=4, activation_fn=tf.nn.relu)
-                conv2 = layers.convolution2d(conv1, num_outputs=64, kernel_size=2, stride=2, activation_fn=tf.nn.relu)
-                conv3 = layers.convolution2d(conv2, num_outputs=64, kernel_size=3, stride=1, activation_fn=tf.nn.relu)
-                conv_flattened = layers.flatten(conv3)
-                # conv_flattened = layers.flatten(obs_float)
+            if obs_float.get_shape().ndims == 2:
+                conv_flattened = layers.flatten(obs_float)
+            else:
+                conv_flattened = useful_neural_nets.atari_convnet(obs_float, 'conv', reuse)
 
             with tf.variable_scope('actor'):
-                actor1 = layers.fully_connected(conv_flattened, num_outputs=512, activation_fn=tf.nn.relu)
-                actor2 = layers.fully_connected(actor1, num_outputs=num_actions, activation_fn=None)
-                # actor2 = layers.fully_connected(conv_flattened, num_outputs=num_actions, activation_fn=None)
-                actor = tf.nn.softmax(actor2)
-
+                actor = useful_neural_nets.policy_mlp(conv_flattened, num_actions)
             with tf.variable_scope('critic'):
-                critic1 = layers.fully_connected(conv_flattened, num_outputs=512, activation_fn=tf.nn.relu)
-                # critic1 = layers.fully_connected(conv_flattened, num_outputs=32, activation_fn=tf.nn.relu)
-                critic = layers.fully_connected(critic1, num_outputs=num_actions, activation_fn=None)
+                critic = useful_neural_nets.advantage_function_mlp(conv_flattened, num_actions)
 
         return [actor, critic]
 
@@ -211,4 +199,3 @@ class DdpgModel:
 
         optimizer = tf.train.AdamOptimizer(learning_rate, epsilon=1e-5)
         return optimizer.apply_gradients(grads)
-
